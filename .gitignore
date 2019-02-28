@@ -28,4 +28,6 @@ cscope.in.out
 cscope.out
 cscope.po.out
 
+src/modbusd
+
 INSTALL
