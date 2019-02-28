@@ -1,0 +1,3 @@
+KNoT system service to allow modbus enabled devices to expose
+data through KNoT cloud service. This service act as a modbus
+TCP client polling data frequently from the sources(servers).
