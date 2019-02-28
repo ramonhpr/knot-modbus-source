@@ -12,9 +12,9 @@ noinst_PROGRAMS =
 
 src_modbusd_SOURCES = src/main.c
 
-src_modbusd_LDADD = $(modules_ldadd) -lm
+src_modbusd_LDADD = $(modules_ldadd) @ELL_LIBS@  -lm
 src_modbusd_LDFLAGS = $(AM_LDFLAGS)
-src_modbusd_CFLAGS = $(AM_CFLAGS) $(modules_cflags)
+src_modbusd_CFLAGS = $(AM_CFLAGS) $(modules_cflags) @ELL_CFLAGS@
 
 DISTCLEANFILES =
 
