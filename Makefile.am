@@ -10,7 +10,8 @@ AM_LDFLAGS = $(BUILD_LDFLAGS)
 bin_PROGRAMS = src/modbusd
 noinst_PROGRAMS =
 
-src_modbusd_SOURCES = src/main.c
+src_modbusd_SOURCES = src/main.c \
+			src/manager.h src/manager.c
 
 src_modbusd_LDADD = $(modules_ldadd) @ELL_LIBS@  -lm
 src_modbusd_LDFLAGS = $(AM_LDFLAGS)
