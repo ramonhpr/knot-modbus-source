@@ -13,9 +13,9 @@ noinst_PROGRAMS =
 src_modbusd_SOURCES = src/main.c \
 			src/manager.h src/manager.c
 
-src_modbusd_LDADD = $(modules_ldadd) @ELL_LIBS@  -lm
+src_modbusd_LDADD = $(modules_ldadd) @ELL_LIBS@  @MODBUS_LIBS@ -lm
 src_modbusd_LDFLAGS = $(AM_LDFLAGS)
-src_modbusd_CFLAGS = $(AM_CFLAGS) $(modules_cflags) @ELL_CFLAGS@
+src_modbusd_CFLAGS = $(AM_CFLAGS) $(modules_cflags) @ELL_CFLAGS@ @MODBUS_CFLAGS@
 
 DISTCLEANFILES =
 

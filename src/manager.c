@@ -27,6 +27,8 @@
 #include <stdio.h>
 #include <ell/ell.h>
 
+#include <modbus.h>
+
 #include "manager.h"
 
 typedef void (*foreach_device_func) (const char *id, const char *ip, int port);
@@ -35,7 +37,11 @@ static struct l_settings *settings;
 
 static void print_keys(const char *id, const char *ip, int port)
 {
+	modbus_t *tcp = modbus_new_tcp(ip, port);
+
 	/* TODO: Connect to peer */
+
+	modbus_free(tcp);
 }
 
 static void foreach_device(const struct l_settings *settings,
