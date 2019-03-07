@@ -158,17 +158,17 @@ static void setup_interface(struct l_dbus_interface *interface)
 	if (!l_dbus_interface_property(interface, "Id", 0, "s",
 				       property_get_id,
 				       NULL))
-		fprintf(stderr, "Can't add 'Id' property\n");
+		l_error("Can't add 'Id' property");
 
 	if (!l_dbus_interface_property(interface, "Ip", 0, "s",
 				       property_get_ip,
 				       property_set_ip))
-		fprintf(stderr, "Can't add 'Ip' property\n");
+		l_error("Can't add 'Ip' property");
 
 	if (!l_dbus_interface_property(interface, "Port", 0, "i",
 				       property_get_port,
 				       property_set_port))
-		fprintf(stderr, "Can't add 'Port' property\n");
+		l_error("Can't add 'Port' property");
 }
 
 int source_start(void)
@@ -177,8 +177,7 @@ int source_start(void)
 				       SOURCE_IFACE,
 				       setup_interface,
 				       NULL, false)) {
-		fprintf(stderr, "dbus: unable to register %s\n",
-			SOURCE_IFACE);
+		l_error("dbus: unable to register %s", SOURCE_IFACE);
 		return -EINVAL;
 	}
 

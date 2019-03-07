@@ -50,7 +50,7 @@ static void dbus_request_name_callback(struct l_dbus *dbus, bool success,
 		return;
 
 	if (!l_dbus_object_manager_enable(g_dbus)) {
-		fprintf(stderr, "Unable to register the ObjectManager");
+		l_error("Unable to register the ObjectManager");
 		return;
 	}
 
@@ -71,6 +71,8 @@ struct l_dbus *dbus_get_bus(void)
 int dbus_start(dbus_setup_completed_func_t setup_cb, void *user_data)
 {
 	struct setup *setup;
+
+	l_info("Starting dbus ...");
 
 	g_dbus = l_dbus_new_default(L_DBUS_SYSTEM_BUS);
 

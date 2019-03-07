@@ -41,6 +41,7 @@ static void create_from_storage(const char *id, const char *ip, int port)
 {
 	struct source *source;
 
+	l_info("Creating source from storage: %s %s %d", id, ip, port);
 	source = source_create(id, ip, port);
 	if (source == NULL)
 		return;
@@ -110,6 +111,8 @@ static struct l_dbus_message *method_source_add(struct l_dbus *dbus,
 	if (source_create(id, ip, port) == NULL)
 		return dbus_error_invalid_args(msg);
 
+	l_info("Creating source: %s %s %d", id, ip, port);
+
 	return l_dbus_message_new_method_return(msg);
 }
 
@@ -143,28 +146,28 @@ static void ready_cb(void *user_data)
 				       MANAGER_INTERFACE,
 				       setup_interface,
 				       NULL, false))
-		fprintf(stderr, "dbus: unable to register %s\n",
-		       MANAGER_INTERFACE);
+		l_error("dbus: unable to register %s", MANAGER_INTERFACE);
 
 	if (!l_dbus_object_add_interface(dbus_get_bus(),
 					 "/",
 					 MANAGER_INTERFACE,
 					 NULL))
-		fprintf(stderr, "dbus: unable to add %s to '/'\n",
-		       MANAGER_INTERFACE);
+		l_error("dbus: unable to add %s to '/'", MANAGER_INTERFACE);
 
 	if (!l_dbus_object_add_interface(dbus_get_bus(),
 					 "/",
 					 L_DBUS_INTERFACE_PROPERTIES,
 					 NULL))
-		fprintf(stderr, "dbus: unable to add %s to '/'\n",
-		       L_DBUS_INTERFACE_PROPERTIES);
+		l_error("dbus: unable to add %s to '/'",
+			L_DBUS_INTERFACE_PROPERTIES);
 
 	source_start();
 }
 
 int manager_start(const char *config_file)
 {
+	l_info("Starting manager ...");
+
 	settings = l_settings_new();
 	if (settings == NULL)
 		return -ENOMEM;
