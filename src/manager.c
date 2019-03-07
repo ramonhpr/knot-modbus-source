@@ -27,25 +27,22 @@
 #include <stdio.h>
 #include <ell/ell.h>
 
-#include <modbus.h>
-
+#include "dbus.h"
+#include "source.h"
 #include "manager.h"
 
-typedef void (*foreach_device_func) (const char *id, const char *ip, int port);
+#define MANAGER_INTERFACE		"br.org.cesar.modbus.Manager1"
+
+typedef void (*foreach_source_func) (const char *id, const char *ip, int port);
 
 static struct l_settings *settings;
 
 static void print_keys(const char *id, const char *ip, int port)
 {
-	modbus_t *tcp = modbus_new_tcp(ip, port);
-
-	/* TODO: Connect to peer */
-
-	modbus_free(tcp);
 }
 
-static void foreach_device(const struct l_settings *settings,
-			   foreach_device_func func, void *user_data)
+static void foreach_source(const struct l_settings *settings,
+			   foreach_source_func func, void *user_data)
 {
 	char **groups;
 	char *ip;
@@ -76,6 +73,58 @@ static void settings_debug(const char *str, void *userdata)
         l_info("%s\n", str);
 }
 
+static struct l_dbus_message *method_add_source(struct l_dbus *dbus,
+						struct l_dbus_message *msg,
+						void *user_data)
+{
+	/* TODO: Add to storage and create source object */
+
+	return l_dbus_message_new_method_return(msg);
+}
+
+static struct l_dbus_message *method_remove_source(struct l_dbus *dbus,
+						struct l_dbus_message *msg,
+						void *user_data)
+{
+	/* TODO: remove from storage and destroy source object */
+
+	return l_dbus_message_new_method_return(msg);
+}
+
+static void setup_interface(struct l_dbus_interface *interface)
+{
+
+	l_dbus_interface_method(interface, "AddSource", 0,
+				method_add_source, "", "a{sv}", "dict");
+
+	l_dbus_interface_method(interface, "RemoveSource", 0,
+				method_remove_source, "", "s", "path");
+}
+
+static void ready_cb(void *user_data)
+{
+	if (!l_dbus_register_interface(dbus_get_bus(),
+				       MANAGER_INTERFACE,
+				       setup_interface,
+				       NULL, false))
+		fprintf(stderr, "dbus: unable to register %s\n",
+		       MANAGER_INTERFACE);
+
+	if (!l_dbus_object_add_interface(dbus_get_bus(),
+					 "/",
+					 MANAGER_INTERFACE,
+					 NULL))
+		fprintf(stderr, "dbus: unable to add %s to '/'\n",
+		       MANAGER_INTERFACE);
+
+	if (!l_dbus_object_add_interface(dbus_get_bus(),
+					 "/",
+					 L_DBUS_INTERFACE_PROPERTIES,
+					 NULL))
+		fprintf(stderr, "dbus: unable to add %s to '/'\n",
+		       L_DBUS_INTERFACE_PROPERTIES);
+}
+
 int manager_start(const char *config_file)
 {
 	settings = l_settings_new();
@@ -86,12 +135,13 @@ int manager_start(const char *config_file)
 	if (!l_settings_load_from_file(settings, config_file))
 		return -EIO;
 
-	foreach_device(settings, print_keys, NULL);
+	foreach_source(settings, print_keys, NULL);
 
-	return 0;
+	return dbus_start(ready_cb, NULL);
 }
 
 void manager_stop(void)
 {
+	dbus_stop();
 	l_settings_free(settings);
 }
