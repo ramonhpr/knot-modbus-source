@@ -110,6 +110,11 @@ static struct l_dbus_message *method_remove_source(struct l_dbus *dbus,
 						struct l_dbus_message *msg,
 						void *user_data)
 {
+	const char *path;
+
+	if (!l_dbus_message_get_arguments(msg, "o", &path))
+		return dbus_error_invalid_args(msg);
+
 	/* TODO: remove from storage and destroy source object */
 
 	return l_dbus_message_new_method_return(msg);
@@ -122,7 +127,7 @@ static void setup_interface(struct l_dbus_interface *interface)
 				method_add_source, "", "a{sv}", "dict");
 
 	l_dbus_interface_method(interface, "RemoveSource", 0,
-				method_remove_source, "", "s", "path");
+				method_remove_source, "", "o", "path");
 }
 
 static void ready_cb(void *user_data)
