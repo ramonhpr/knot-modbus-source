@@ -37,8 +37,13 @@ typedef void (*foreach_source_func) (const char *id, const char *ip, int port);
 
 static struct l_settings *settings;
 
-static void print_keys(const char *id, const char *ip, int port)
+static void create_from_storage(const char *id, const char *ip, int port)
 {
+	struct source *source;
+
+	source = source_create(id, ip, port);
+	if (source == NULL)
+		return;
 }
 
 static void foreach_source(const struct l_settings *settings,
@@ -168,7 +173,7 @@ int manager_start(const char *config_file)
 	if (!l_settings_load_from_file(settings, config_file))
 		return -EIO;
 
-	foreach_source(settings, print_keys, NULL);
+	foreach_source(settings, create_from_storage, NULL);
 
 	return dbus_start(ready_cb, NULL);
 }
