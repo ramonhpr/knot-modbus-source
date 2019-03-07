@@ -77,6 +77,30 @@ static struct l_dbus_message *method_add_source(struct l_dbus *dbus,
 						struct l_dbus_message *msg,
 						void *user_data)
 {
+	struct l_dbus_message_iter dict;
+	struct l_dbus_message_iter value;
+	const char *key = NULL;
+	const char *id = NULL;
+	const char *ip = NULL;
+	int port = -1;
+
+	if (!l_dbus_message_get_arguments(msg, "a{sv}", &dict))
+		return dbus_error_invalid_args(msg);
+
+	while (l_dbus_message_iter_next_entry(&dict, &key, &value)) {
+		if (strcmp(key, "Id") == 0)
+			l_dbus_message_iter_next_entry(&value, &id);
+		else if (strcmp(key, "Ip") == 0)
+			l_dbus_message_iter_next_entry(&value, &ip);
+		else if (strcmp(key, "Port") == 0)
+			l_dbus_message_iter_next_entry(&value, &port);
+		else
+			return dbus_error_invalid_args(msg);
+	}
+
+	if (!id || !ip || port < 0)
+		return dbus_error_invalid_args(msg);
+
 	/* TODO: Add to storage and create source object */
 
 	return l_dbus_message_new_method_return(msg);
