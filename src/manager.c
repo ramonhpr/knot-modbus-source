@@ -73,7 +73,7 @@ static void settings_debug(const char *str, void *userdata)
         l_info("%s\n", str);
 }
 
-static struct l_dbus_message *method_add_source(struct l_dbus *dbus,
+static struct l_dbus_message *method_source_add(struct l_dbus *dbus,
 						struct l_dbus_message *msg,
 						void *user_data)
 {
@@ -102,11 +102,13 @@ static struct l_dbus_message *method_add_source(struct l_dbus *dbus,
 		return dbus_error_invalid_args(msg);
 
 	/* TODO: Add to storage and create source object */
+	if (source_create(id, ip, port) == NULL)
+		return dbus_error_invalid_args(msg);
 
 	return l_dbus_message_new_method_return(msg);
 }
 
-static struct l_dbus_message *method_remove_source(struct l_dbus *dbus,
+static struct l_dbus_message *method_source_remove(struct l_dbus *dbus,
 						struct l_dbus_message *msg,
 						void *user_data)
 {
@@ -124,10 +126,10 @@ static void setup_interface(struct l_dbus_interface *interface)
 {
 
 	l_dbus_interface_method(interface, "AddSource", 0,
-				method_add_source, "", "a{sv}", "dict");
+				method_source_add, "", "a{sv}", "dict");
 
 	l_dbus_interface_method(interface, "RemoveSource", 0,
-				method_remove_source, "", "o", "path");
+				method_source_remove, "", "o", "path");
 }
 
 static void ready_cb(void *user_data)
@@ -152,6 +154,8 @@ static void ready_cb(void *user_data)
 					 NULL))
 		fprintf(stderr, "dbus: unable to add %s to '/'\n",
 		       L_DBUS_INTERFACE_PROPERTIES);
+
+	source_start();
 }
 
 int manager_start(const char *config_file)
@@ -171,6 +175,7 @@ int manager_start(const char *config_file)
 
 void manager_stop(void)
 {
+	source_stop();
 	dbus_stop();
 	l_settings_free(settings);
 }

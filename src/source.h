@@ -19,5 +19,10 @@
  *
  */
 
-int source_create(const char *id, const char *ip, int port);
-void source_destroy(void);
+struct source;
+
+int source_start(void);
+void source_stop(void);
+
+struct source *source_create(const char *id, const char *ip, int port);
+void source_destroy(struct source *source);
