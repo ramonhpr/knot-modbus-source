@@ -135,6 +135,18 @@ static struct l_dbus_message *method_source_remove(struct l_dbus *dbus,
 	return l_dbus_message_new_method_return(msg);
 }
 
+static bool property_get_id(struct l_dbus *dbus,
+				  struct l_dbus_message *msg,
+				  struct l_dbus_message_builder *builder,
+				  void *user_data)
+{
+	struct slave *slave = user_data;
+
+	l_dbus_message_builder_append_basic(builder, 'y', &slave->id);
+
+	return true;
+}
+
 static bool property_get_name(struct l_dbus *dbus,
 				  struct l_dbus_message *msg,
 				  struct l_dbus_message_builder *builder,
@@ -176,6 +188,11 @@ static void setup_interface(struct l_dbus_interface *interface)
 
 	l_dbus_interface_method(interface, "RemoveSource", 0,
 				method_source_remove, "", "o", "path");
+
+	if (!l_dbus_interface_property(interface, "Id", 0, "y",
+				       property_get_id,
+				       NULL))
+		l_error("Can't add 'Id' property");
 
 	/* Local name to identify slaves */
 	if (!l_dbus_interface_property(interface, "Name", 0, "s",
