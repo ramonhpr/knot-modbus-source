@@ -11,7 +11,7 @@ bin_PROGRAMS = src/modbusd
 noinst_PROGRAMS =
 
 src_modbusd_SOURCES = src/main.c \
-			src/manager.h src/manager.c \
+			src/slave.h src/slave.c \
 			src/source.h src/source.c \
 			src/dbus.h src/dbus.c
 

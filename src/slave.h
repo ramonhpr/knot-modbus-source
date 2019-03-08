@@ -19,5 +19,5 @@
  *
  */
 
-int manager_start(const char *config_file);
-void manager_stop(void);
+int slave_start(const char *config_file);
+void slave_stop(void);

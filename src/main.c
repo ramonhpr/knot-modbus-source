@@ -30,7 +30,7 @@
 
 #include <ell/ell.h>
 
-#include "manager.h"
+#include "slave.h"
 
 static const char *config_file;
 
@@ -91,12 +91,12 @@ int main(int argc, char *argv[])
 
 	l_log_set_stderr();
 
-	if (manager_start(config_file) < 0)
+	if (slave_start(config_file) < 0)
 		goto main_exit;
 
 	l_main_run_with_signal(signal_handler, NULL);
 
-	manager_stop();
+	slave_stop();
 main_exit:
 	l_main_exit();
 

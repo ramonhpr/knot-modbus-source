@@ -29,9 +29,9 @@
 
 #include "dbus.h"
 #include "source.h"
-#include "manager.h"
+#include "slave.h"
 
-#define MANAGER_INTERFACE		"br.org.cesar.modbus.Manager1"
+#define SLAVE_INTERFACE		"br.org.cesar.modbus.Slave1"
 
 typedef void (*foreach_source_func) (const char *id, const char *ip, int port);
 
@@ -143,16 +143,16 @@ static void setup_interface(struct l_dbus_interface *interface)
 static void ready_cb(void *user_data)
 {
 	if (!l_dbus_register_interface(dbus_get_bus(),
-				       MANAGER_INTERFACE,
+				       SLAVE_INTERFACE,
 				       setup_interface,
 				       NULL, false))
-		l_error("dbus: unable to register %s", MANAGER_INTERFACE);
+		l_error("dbus: unable to register %s", SLAVE_INTERFACE);
 
 	if (!l_dbus_object_add_interface(dbus_get_bus(),
 					 "/",
-					 MANAGER_INTERFACE,
+					 SLAVE_INTERFACE,
 					 NULL))
-		l_error("dbus: unable to add %s to '/'", MANAGER_INTERFACE);
+		l_error("dbus: unable to add %s to '/'", SLAVE_INTERFACE);
 
 	if (!l_dbus_object_add_interface(dbus_get_bus(),
 					 "/",
@@ -164,9 +164,9 @@ static void ready_cb(void *user_data)
 	source_start();
 }
 
-int manager_start(const char *config_file)
+int slave_start(const char *config_file)
 {
-	l_info("Starting manager ...");
+	l_info("Starting slave ...");
 
 	settings = l_settings_new();
 	if (settings == NULL)
@@ -181,7 +181,7 @@ int manager_start(const char *config_file)
 	return dbus_start(ready_cb, NULL);
 }
 
-void manager_stop(void)
+void slave_stop(void)
 {
 	source_stop();
 	dbus_stop();
