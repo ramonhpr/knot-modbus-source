@@ -31,20 +31,56 @@
 #include "source.h"
 #include "slave.h"
 
-#define SLAVE_INTERFACE		"br.org.cesar.modbus.Slave1"
+#define SLAVE_IFACE		"br.org.cesar.modbus.Slave1"
 
 typedef void (*foreach_source_func) (const char *id, const char *ip, int port);
 
 struct slave {
+	int refs;
 	uint8_t id;
 	char *name;
+	char *path;
 };
 
 static struct l_settings *settings;
 
+static void slave_free(struct slave *slave)
+{
+	l_free(slave->name);
+	l_free(slave->path);
+	l_free(slave);
+}
+
+static struct slave *slave_ref(struct slave *slave)
+{
+	if (unlikely(!slave))
+		return NULL;
+
+	__sync_fetch_and_add(&slave->refs, 1);
+
+	return slave;
+}
+
+static void slave_unref(struct slave *slave)
+{
+	if (unlikely(!slave))
+		return;
+
+	if (__sync_sub_and_fetch(&slave->refs, 1))
+		return;
+
+	slave_free(slave);
+}
+
+
 static void create_from_storage(const char *id, const char *ip, int port)
 {
 	struct source *source;
+
+	if (!id || !ip || port < 0) {
+		l_warn("storage: invalid entry");
+		return;
+	}
 
 	l_info("Creating source from storage: %s %s %d", id, ip, port);
 	source = source_create(id, ip, port);
@@ -201,42 +237,48 @@ static void setup_interface(struct l_dbus_interface *interface)
 		l_error("Can't add 'Name' property");
 }
 
-static void ready_cb(void *user_data)
+int slave_create(const char *address)
 {
 	struct slave *slave;
+	char *dpath;
 
-	/* TODO: Create dynamically */
+	/* "host:port or /dev/ttyACM0, /dev/ttyUSB0, ..."*/
+
+	dpath = l_strdup(address);
 
 	slave = l_new(struct slave, 1);
 	slave->id = 0x01;
 	slave->name = l_strdup("unknown");
 
-	/* FIXME: leaking ... */
+	if (!l_dbus_register_object(dbus_get_bus(),
+				    dpath,
+				    slave_ref(slave),
+				    (l_dbus_destroy_func_t) slave_unref,
+				    SLAVE_IFACE, slave,
+				    L_DBUS_INTERFACE_PROPERTIES, slave,
+				    NULL)) {
+		l_error("Can not register: %s", dpath);
+		l_free(dpath);
+		return -1;
+	}
 
-	if (!l_dbus_register_interface(dbus_get_bus(),
-				       SLAVE_INTERFACE,
-				       setup_interface,
-				       NULL, false))
-		l_error("dbus: unable to register %s", SLAVE_INTERFACE);
+	slave->path = dpath;
 
-	if (!l_dbus_object_add_interface(dbus_get_bus(),
-					 "/slave01",
-					 SLAVE_INTERFACE,
-					 slave))
-		l_error("dbus: unable to add %s to '/slave01'", SLAVE_INTERFACE);
+	l_info("New slave: %s", dpath);
 
-	if (!l_dbus_object_add_interface(dbus_get_bus(),
-					 "/slave01",
-					 L_DBUS_INTERFACE_PROPERTIES,
-					 NULL))
-		l_error("dbus: unable to add %s to '/slave01'",
-			L_DBUS_INTERFACE_PROPERTIES);
+	/* FIXME: Identifier is a PTR_TO_INT. Missing hashmap */
 
-	source_start();
+	return L_PTR_TO_INT(slave);
+}
+
+void slave_destroy(int id)
+{
+	l_dbus_unregister_object(dbus_get_bus(), "/slave01");
 }
 
 int slave_start(const char *config_file)
 {
+
 	l_info("Starting slave ...");
 
 	settings = l_settings_new();
@@ -244,17 +286,29 @@ int slave_start(const char *config_file)
 		return -ENOMEM;
 
 	l_settings_set_debug(settings, settings_debug, NULL, NULL);
-	if (!l_settings_load_from_file(settings, config_file))
+	if (!l_settings_load_from_file(settings, config_file)) {
+		l_settings_free(settings);
 		return -EIO;
+	}
+
+	if (!l_dbus_register_interface(dbus_get_bus(),
+				       SLAVE_IFACE,
+				       setup_interface,
+				       NULL, false))
+		l_error("dbus: unable to register %s", SLAVE_IFACE);
+
+	/* FIXME: missing storage */
+	slave_create("/slave01");
+
+	source_start();
 
 	foreach_source(settings, create_from_storage, NULL);
 
-	return dbus_start(ready_cb, NULL);
+	return 0;
 }
 
 void slave_stop(void)
 {
 	source_stop();
-	dbus_stop();
 	l_settings_free(settings);
 }

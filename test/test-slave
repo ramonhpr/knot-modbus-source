@@ -15,7 +15,7 @@ if (len(args) < 1):
         print("")
         print("  info")
         print("  add [Id] [Ip] [Port]")
-        print("  remove [source path]")
+        print("  remove [slave path]")
         sys.exit(1)
 
 cmd = args[0]
@@ -32,23 +32,20 @@ if (cmd == "info"):
 	sys.exit(0)
 
 if (cmd == "add"):
-        print ("Adding source:")
+        print ("Adding slave:")
         print ("  Id:  %s" % args[1])
-        print ("  Ip:  %s" % args[2])
-        print ("  Port:  %s" % args[3])
-        idval = dbus.String(args[1])
-        ipval = dbus.String(args[2])
-        portval = dbus.Int32(args[3])
-        source_dict = dict()
-        source_dict.update({"Id": idval})
-        source_dict.update({"Ip": ipval})
-        source_dict.update({"Port": portval})
-        dbus_dict = dbus.Dictionary(source_dict, signature='sv')
-        print (manager.AddSource(dbus_dict))
+        print ("  Address:  %s" % args[2])
+        idval = dbus.Byte(int(args[1]))
+        addrval = dbus.String(args[2])
+        slave_dict = dict()
+        slave_dict.update({"Id": idval})
+        slave_dict.update({"Address": addrval})
+        dbus_dict = dbus.Dictionary(slave_dict, signature='sv')
+        print (manager.AddSlave(dbus_dict))
         sys.exit(0)
 
 if (cmd == "remove"):
-	print ("Removing source %s" % args[1])
+	print ("Removing slave %s" % args[1])
 	devpath = dbus.ObjectPath(args[1])
-	print (manager.RemoveSource(devpath))
+	print (manager.RemoveSlave(devpath))
 	sys.exit(0)

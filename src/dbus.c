@@ -46,8 +46,12 @@ static void dbus_request_name_callback(struct l_dbus *dbus, bool success,
 {
 	struct setup *setup = user_data;
 
-	if (!success)
+	if (!success) {
+		l_info("Name acquire failed!");
 		return;
+	}
+
+	l_info("Name acquire complete.");
 
 	if (!l_dbus_object_manager_enable(g_dbus)) {
 		l_error("Unable to register the ObjectManager");

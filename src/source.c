@@ -173,6 +173,8 @@ static void setup_interface(struct l_dbus_interface *interface)
 
 int source_start(void)
 {
+	l_info("Starting source ...");
+
 	if (!l_dbus_register_interface(dbus_get_bus(),
 				       SOURCE_IFACE,
 				       setup_interface,
@@ -197,14 +199,14 @@ struct source *source_create(const char *id, const char *ip, int port)
 
 	/* TODO: Already exists? */
 
-	dpath = l_strdup_printf("/modbustcp/%s", id);
+	dpath = l_strdup("/slave01/source01");
 
 	source = l_new(struct source, 1);
 	source->id = l_strdup(id);
 	source->ip = l_strdup(ip);
 	source->port = port;
-	source->path = dpath;
 	source->tcp = modbus_new_tcp(ip, port);
+	source->path = NULL;
 
 	/* TODO: Connect to peer */
 
@@ -214,14 +216,17 @@ struct source *source_create(const char *id, const char *ip, int port)
 				    (l_dbus_destroy_func_t) source_unref,
 				    SOURCE_IFACE, source,
 				    L_DBUS_INTERFACE_PROPERTIES, source,
-				    NULL))
-		goto reg_fail;
+				    NULL)) {
+		l_error("Can not register: %s", dpath);
+		l_free(dpath);
+		return NULL;
+	}
+
+	l_info("New source: %s", dpath);
+
+	source->path = dpath;
 
 	return source_ref(source);
-
-reg_fail:
-	source_free(source);
-	return NULL;
 }
 
 void source_destroy(struct source *source)
