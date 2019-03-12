@@ -22,5 +22,5 @@
 int slave_start(const char *config_file);
 void slave_stop(void);
 
-int slave_create(const char *address);
+int slave_create(uint8_t id, const char *name, const char *address);
 void slave_destroy(int id);

@@ -47,15 +47,22 @@ static struct l_dbus_message *method_slave_add(struct l_dbus *dbus,
 	struct l_dbus_message_iter dict;
 	struct l_dbus_message_iter value;
 	const char *key = NULL;
+	const char *name = NULL;
 	const char *address = NULL;
 	uint8_t id = 0;
 
 	if (!l_dbus_message_get_arguments(msg, "a{sv}", &dict))
 		return dbus_error_invalid_args(msg);
 
+	/*
+	 * "Id": modbus slave id (1 - 247)
+	 * "Name": Friendly/local name
+	 * "Address: host:port or /dev/ttyACM0, /dev/ttyUSB0, ...
+	 */
 	while (l_dbus_message_iter_next_entry(&dict, &key, &value)) {
-		/* "host:port or /dev/ttyACM0, /dev/ttyUSB0, ..."*/
-		if (strcmp(key, "Address") == 0)
+		if (strcmp(key, "Name") == 0)
+			l_dbus_message_iter_get_variant(&value, "s", &name);
+		else if (strcmp(key, "Address") == 0)
 			l_dbus_message_iter_get_variant(&value, "s", &address);
 		else if (strcmp(key, "Id") == 0)
 			l_dbus_message_iter_get_variant(&value, "y", &id);
@@ -65,11 +72,11 @@ static struct l_dbus_message *method_slave_add(struct l_dbus *dbus,
 
 	l_info("Creating new slave(%d, %s) ...", id, address);
 
-	if (!address)
+	if (!address || id == 0)
 		return dbus_error_invalid_args(msg);
 
 	/* TODO: Add to storage and create slave object */
-	if (slave_create(address) < 0)
+	if (slave_create(id, name ? : address, address) < 0)
 		return dbus_error_invalid_args(msg);
 
 	return l_dbus_message_new_method_return(msg);

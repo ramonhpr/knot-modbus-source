@@ -14,7 +14,7 @@ if (len(args) < 1):
         print("Usage: %s <command>" % (sys.argv[0]))
         print("")
         print("  info")
-        print("  add [Id] [Ip] [Port]")
+        print("  add [Id] [Name] [Address]")
         print("  remove [slave path]")
         sys.exit(1)
 
@@ -33,12 +33,15 @@ if (cmd == "info"):
 
 if (cmd == "add"):
         print ("Adding slave:")
-        print ("  Id:  %s" % args[1])
-        print ("  Address:  %s" % args[2])
+        print ("  Id:  %s (1 - 247)" % args[1])
+        print ("  Name:  %s" % args[2])
+        print ("  Address:  %s (host:port)" % args[3])
         idval = dbus.Byte(int(args[1]))
-        addrval = dbus.String(args[2])
+        nameval = dbus.String(args[2])
+        addrval = dbus.String(args[3])
         slave_dict = dict()
         slave_dict.update({"Id": idval})
+        slave_dict.update({"Name": nameval})
         slave_dict.update({"Address": addrval})
         dbus_dict = dbus.Dictionary(slave_dict, signature='sv')
         print (manager.AddSlave(dbus_dict))

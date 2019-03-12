@@ -237,7 +237,7 @@ static void setup_interface(struct l_dbus_interface *interface)
 		l_error("Can't add 'Name' property");
 }
 
-int slave_create(const char *address)
+int slave_create(uint8_t id, const char *name, const char *address)
 {
 	struct slave *slave;
 	char *dpath;
@@ -245,10 +245,11 @@ int slave_create(const char *address)
 	/* "host:port or /dev/ttyACM0, /dev/ttyUSB0, ..."*/
 
 	dpath = l_strdup(address);
+	dpath = l_strdup_printf("/modbus/slave/%03d", id);
 
 	slave = l_new(struct slave, 1);
-	slave->id = 0x01;
-	slave->name = l_strdup("unknown");
+	slave->id = id;
+	slave->name = l_strdup(name);
 
 	if (!l_dbus_register_object(dbus_get_bus(),
 				    dpath,
@@ -298,7 +299,7 @@ int slave_start(const char *config_file)
 		l_error("dbus: unable to register %s", SLAVE_IFACE);
 
 	/* FIXME: missing storage */
-	slave_create("/slave01");
+	slave_create(0x01, "name01", "/modbus/slave/001");
 
 	source_start();
 
