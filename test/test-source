@@ -1,0 +1,58 @@
+#!/usr/bin/python
+from optparse import OptionParser, make_option
+import sys
+import dbus
+
+bus = dbus.SystemBus()
+
+option_list = [ make_option("-p", "--path", action="store", type="string", dest="path"), ]
+parser = OptionParser(option_list=option_list)
+
+(options, args) = parser.parse_args()
+
+if (len(args) < 1):
+        print("Usage: %s <command>" % (sys.argv[0]))
+        print("")
+        print("  info")
+        print("  add [Name] [Type] [Address] [Size]")
+        print("  remove [source path]")
+        sys.exit(1)
+
+cmd = args[0]
+if (options.path):
+	path = options.path
+else:
+	path = "/"
+
+props = dbus.Interface(bus.get_object("br.org.cesar.modbus", path), "org.freedesktop.DBus.Properties")
+slave = dbus.Interface(bus.get_object("br.org.cesar.modbus", path), "br.org.cesar.modbus.Slave1")
+
+if (cmd == "info"):
+	print (props.GetAll("br.org.cesar.modbus.Slave1"))
+	sys.exit(0)
+
+if (cmd == "add"):
+        print ("Adding source:")
+        print ("  Name:  %s" % args[1])
+        print ("  Type:  %s" % args[2])
+        print ("  Address:  %s" % args[3])
+        print ("  Size:  %s" % args[4])
+
+        nameval = dbus.String(args[1])
+        typeval = dbus.String(args[2])
+        addrval = dbus.UInt16(args[3])
+        sizeval = dbus.UInt16(args[4])
+        slave_dict = dict()
+        slave_dict.update({"Name": nameval})
+        slave_dict.update({"Type": typeval})
+        slave_dict.update({"Address": addrval})
+        slave_dict.update({"Size": sizeval})
+        dbus_dict = dbus.Dictionary(slave_dict, signature='sv')
+        print ("PATH: %s" % slave.AddSource(dbus_dict))
+        sys.exit(0)
+
+if (cmd == "remove"):
+	print ("Removing source %s" % args[1])
+	devpath = dbus.ObjectPath(args[1])
+	print (slave.RemoveSource(devpath))
+	sys.exit(0)

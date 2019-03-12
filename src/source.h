@@ -24,5 +24,6 @@ struct source;
 int source_start(void);
 void source_stop(void);
 
-struct source *source_create(const char *id, const char *ip, int port);
-void source_destroy(struct source *source);
+const char *source_create(const char *prefix, const char *name,
+			  const char *type, uint16_t address, uint16_t size);
+void source_destroy(const char *opath);

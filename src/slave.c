@@ -80,37 +80,51 @@ static struct l_dbus_message *method_source_add(struct l_dbus *dbus,
 						struct l_dbus_message *msg,
 						void *user_data)
 {
+	struct slave *slave = user_data;
+	struct l_dbus_message *reply;
+	struct l_dbus_message_builder *builder;
 	struct l_dbus_message_iter dict;
 	struct l_dbus_message_iter value;
+	const char *opath;
 	const char *key = NULL;
-	const char *id = NULL;
-	const char *ip = NULL;
-	int port = -1;
+	const char *name = NULL;
+	const char *type = NULL;
+	uint16_t address = 0;
+	uint16_t size = 0;
 
 	if (!l_dbus_message_get_arguments(msg, "a{sv}", &dict))
 		return dbus_error_invalid_args(msg);
 
 	while (l_dbus_message_iter_next_entry(&dict, &key, &value)) {
-		if (strcmp(key, "Id") == 0)
-			l_dbus_message_iter_next_entry(&value, &id);
-		else if (strcmp(key, "Ip") == 0)
-			l_dbus_message_iter_next_entry(&value, &ip);
-		else if (strcmp(key, "Port") == 0)
-			l_dbus_message_iter_next_entry(&value, &port);
+		if (strcmp(key, "Name") == 0)
+			l_dbus_message_iter_get_variant(&value, "s", &name);
+		else if (strcmp(key, "Type") == 0)
+			l_dbus_message_iter_get_variant(&value, "s", &type);
+		else if (strcmp(key, "Address") == 0)
+			l_dbus_message_iter_get_variant(&value, "q", &address);
+		else if (strcmp(key, "Size") == 0)
+			l_dbus_message_iter_get_variant(&value, "q", &size);
 		else
 			return dbus_error_invalid_args(msg);
 	}
 
-	if (!id || !ip || port < 0)
+	/* FIXME: validate type */
+	if (!name || !type || address == 0 || size == 0)
 		return dbus_error_invalid_args(msg);
 
 	/* TODO: Add to storage and create source object */
-	if (source_create(id, ip, port) == NULL)
+	opath = source_create(slave->path, name, type, address, size);
+	if (!opath)
 		return dbus_error_invalid_args(msg);
 
-	l_info("Creating source: %s %s %d", id, ip, port);
+	/* Add object path to reply message */
+	reply = l_dbus_message_new_method_return(msg);
+	builder = l_dbus_message_builder_new(reply);
+	l_dbus_message_builder_append_basic(builder, 'o', opath);
+	l_dbus_message_builder_finalize(builder);
+	l_dbus_message_builder_destroy(builder);
 
-	return l_dbus_message_new_method_return(msg);
+	return reply;
 }
 
 static struct l_dbus_message *method_source_remove(struct l_dbus *dbus,
@@ -176,7 +190,8 @@ static void setup_interface(struct l_dbus_interface *interface)
 
 	/* Add/Remove sources (a.k.a variables)  */
 	l_dbus_interface_method(interface, "AddSource", 0,
-				method_source_add, "", "a{sv}", "dict");
+				method_source_add,
+				"o", "a{sv}", "path", "dict");
 
 	l_dbus_interface_method(interface, "RemoveSource", 0,
 				method_source_remove, "", "o", "path");
@@ -202,7 +217,7 @@ const char *slave_create(uint8_t id, const char *name, const char *address)
 
 	/* FIXME: id is not unique across PLCs */
 
-	dpath = l_strdup_printf("/slave%03d", id);
+	dpath = l_strdup_printf("/slave_%04x", id);
 
 	slave = l_new(struct slave, 1);
 	slave->id = id;
@@ -222,7 +237,7 @@ const char *slave_create(uint8_t id, const char *name, const char *address)
 
 	slave->path = dpath;
 
-	l_info("New slave: %s", dpath);
+	l_info("New slave(%p): %s", slave, dpath);
 
 	/* FIXME: Identifier is a PTR_TO_INT. Missing hashmap */
 
