@@ -33,8 +33,6 @@
 
 #define SLAVE_IFACE		"br.org.cesar.modbus.Slave1"
 
-typedef void (*foreach_source_func) (const char *id, const char *ip, int port);
-
 struct slave {
 	int refs;
 	uint8_t id;
@@ -72,48 +70,6 @@ static void slave_unref(struct slave *slave)
 	slave_free(slave);
 }
 
-
-static void create_from_storage(const char *id, const char *ip, int port)
-{
-	struct source *source;
-
-	if (!id || !ip || port < 0) {
-		l_warn("storage: invalid entry");
-		return;
-	}
-
-	l_info("Creating source from storage: %s %s %d", id, ip, port);
-	source = source_create(id, ip, port);
-	if (source == NULL)
-		return;
-}
-
-static void foreach_source(const struct l_settings *settings,
-			   foreach_source_func func, void *user_data)
-{
-	char **groups;
-	char *ip;
-	int index;
-	int port;
-
-	groups = l_settings_get_groups(settings);
-	if (!groups)
-		return;
-
-	for (index = 0; groups[index] != NULL; index++) {
-
-		if (!l_settings_get_int(settings, groups[index], "Port", &port))
-			continue;
-
-		ip = l_settings_get_string(settings, groups[index], "IP");
-
-		func(groups[index], ip, port);
-
-		l_free(ip);
-	}
-
-	l_strfreev(groups);
-}
 
 static void settings_debug(const char *str, void *userdata)
 {
@@ -237,15 +193,16 @@ static void setup_interface(struct l_dbus_interface *interface)
 		l_error("Can't add 'Name' property");
 }
 
-int slave_create(uint8_t id, const char *name, const char *address)
+const char *slave_create(uint8_t id, const char *name, const char *address)
 {
 	struct slave *slave;
 	char *dpath;
 
 	/* "host:port or /dev/ttyACM0, /dev/ttyUSB0, ..."*/
 
-	dpath = l_strdup(address);
-	dpath = l_strdup_printf("/modbus/slave/%03d", id);
+	/* FIXME: id is not unique across PLCs */
+
+	dpath = l_strdup_printf("/slave%03d", id);
 
 	slave = l_new(struct slave, 1);
 	slave->id = id;
@@ -260,7 +217,7 @@ int slave_create(uint8_t id, const char *name, const char *address)
 				    NULL)) {
 		l_error("Can not register: %s", dpath);
 		l_free(dpath);
-		return -1;
+		return NULL;
 	}
 
 	slave->path = dpath;
@@ -269,12 +226,12 @@ int slave_create(uint8_t id, const char *name, const char *address)
 
 	/* FIXME: Identifier is a PTR_TO_INT. Missing hashmap */
 
-	return L_PTR_TO_INT(slave);
+	return dpath;
 }
 
-void slave_destroy(int id)
+void slave_destroy(const char *path)
 {
-	l_dbus_unregister_object(dbus_get_bus(), "/slave01");
+	l_dbus_unregister_object(dbus_get_bus(), path);
 }
 
 int slave_start(const char *config_file)
@@ -298,12 +255,7 @@ int slave_start(const char *config_file)
 				       NULL, false))
 		l_error("dbus: unable to register %s", SLAVE_IFACE);
 
-	/* FIXME: missing storage */
-	slave_create(0x01, "name01", "/modbus/slave/001");
-
 	source_start();
-
-	foreach_source(settings, create_from_storage, NULL);
 
 	return 0;
 }

@@ -44,7 +44,7 @@ if (cmd == "add"):
         slave_dict.update({"Name": nameval})
         slave_dict.update({"Address": addrval})
         dbus_dict = dbus.Dictionary(slave_dict, signature='sv')
-        print (manager.AddSlave(dbus_dict))
+        print ("PATH: %s" % manager.AddSlave(dbus_dict))
         sys.exit(0)
 
 if (cmd == "remove"):

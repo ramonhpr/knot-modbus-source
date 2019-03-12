@@ -33,23 +33,98 @@
 
 #define MANAGER_INTERFACE		"br.org.cesar.modbus.Manager1"
 
+typedef void (*foreach_source_func) (const char *id, const char *address, const char *name);
+
 static struct l_settings *settings;
+static struct l_queue *slave_list;
 
 static void settings_debug(const char *str, void *userdata)
 {
         l_info("%s\n", str);
 }
 
+static bool path_cmp(const void *a, const void *b)
+{
+	const char *a1 = a;
+	const char *b1 = b;
+
+	return (strcmp(a1, b1) == 0 ? true : false);
+}
+
+static void create_from_storage(const char *id,
+				const char *address, const char *name)
+{
+	const char *opath;
+	int slave_id;
+
+	if (sscanf(id, "%x", &slave_id) != 1)
+		return;
+
+	opath  = slave_create(slave_id, address, name);
+	if (!opath)
+		return;
+
+	l_queue_push_head(slave_list, l_strdup(opath));
+}
+
+static void foreach_slave_register(const struct l_settings *settings,
+				   foreach_source_func func, void *user_data)
+{
+	char **groups;
+	char *name;
+	char *address;
+	int index;
+
+	groups = l_settings_get_groups(settings);
+	if (!groups)
+		return;
+
+	for (index = 0; groups[index] != NULL; index++) {
+
+		name = l_settings_get_string(settings,
+					     groups[index], "Name");
+		if (!name)
+			continue;
+
+		address = l_settings_get_string(settings,
+						groups[index], "Address");
+		if (!address) {
+			l_free(name);
+			continue;
+		}
+
+		func(groups[index], address, name);
+
+		l_free(address);
+		l_free(name);
+	}
+
+	l_strfreev(groups);
+}
+
+
+static void foreach_slave_destroy(void *data)
+{
+	char *opath = data;
+
+	slave_destroy(opath);
+	l_info("Destroying slave %s", opath);
+	l_free(opath);
+}
+
 static struct l_dbus_message *method_slave_add(struct l_dbus *dbus,
 						struct l_dbus_message *msg,
 						void *user_data)
 {
+	struct l_dbus_message *reply;
+	struct l_dbus_message_builder *builder;
 	struct l_dbus_message_iter dict;
 	struct l_dbus_message_iter value;
 	const char *key = NULL;
 	const char *name = NULL;
 	const char *address = NULL;
-	uint8_t id = 0;
+	uint8_t slave_id = 0;
+	const char *opath;
 
 	if (!l_dbus_message_get_arguments(msg, "a{sv}", &dict))
 		return dbus_error_invalid_args(msg);
@@ -65,31 +140,47 @@ static struct l_dbus_message *method_slave_add(struct l_dbus *dbus,
 		else if (strcmp(key, "Address") == 0)
 			l_dbus_message_iter_get_variant(&value, "s", &address);
 		else if (strcmp(key, "Id") == 0)
-			l_dbus_message_iter_get_variant(&value, "y", &id);
+			l_dbus_message_iter_get_variant(&value, "y", &slave_id);
 		else
 			return dbus_error_invalid_args(msg);
 	}
 
-	l_info("Creating new slave(%d, %s) ...", id, address);
+	l_info("Creating new slave(%d, %s) ...", slave_id, address);
 
-	if (!address || id == 0)
+	if (!address || slave_id == 0)
 		return dbus_error_invalid_args(msg);
 
 	/* TODO: Add to storage and create slave object */
-	if (slave_create(id, name ? : address, address) < 0)
+	opath  = slave_create(slave_id, name ? : address, address);
+	if (!opath)
 		return dbus_error_invalid_args(msg);
 
-	return l_dbus_message_new_method_return(msg);
+	l_queue_push_head(slave_list, l_strdup(opath));
+
+	/* Add object path to reply message */
+	reply = l_dbus_message_new_method_return(msg);
+	builder = l_dbus_message_builder_new(reply);
+	l_dbus_message_builder_append_basic(builder, 'o', opath);
+	l_dbus_message_builder_finalize(builder);
+	l_dbus_message_builder_destroy(builder);
+
+	return reply;
 }
 
 static struct l_dbus_message *method_slave_remove(struct l_dbus *dbus,
 						struct l_dbus_message *msg,
 						void *user_data)
 {
-	const char *path;
+	const char *opath;
 
-	if (!l_dbus_message_get_arguments(msg, "o", &path))
+	if (!l_dbus_message_get_arguments(msg, "o", &opath))
 		return dbus_error_invalid_args(msg);
+
+	/* Belongs to list? */
+	if (l_queue_remove_if(slave_list, path_cmp, opath) == NULL)
+		return dbus_error_invalid_args(msg);
+
+	slave_destroy(opath);
 
 	/* TODO: remove from storage and destroy slave object */
 
@@ -98,10 +189,10 @@ static struct l_dbus_message *method_slave_remove(struct l_dbus *dbus,
 
 static void setup_interface(struct l_dbus_interface *interface)
 {
-
 	/* Add/Remove slaves (a.k.a variables)  */
 	l_dbus_interface_method(interface, "AddSlave", 0,
-				method_slave_add, "", "a{sv}", "dict");
+				method_slave_add, "o",
+				"a{sv}", "path", "dict");
 
 	l_dbus_interface_method(interface, "RemoveSlave", 0,
 				method_slave_remove, "", "o", "path");
@@ -129,6 +220,9 @@ static void ready_cb(void *user_data)
 			L_DBUS_INTERFACE_PROPERTIES);
 
 	slave_start(user_data);
+
+	/* Registering all slaves */
+	foreach_slave_register(settings, create_from_storage, NULL);
 }
 
 int manager_start(const char *config_file)
@@ -144,11 +238,15 @@ int manager_start(const char *config_file)
 	if (!l_settings_load_from_file(settings, config_file))
 		return -EIO;
 
+	slave_list = l_queue_new();
+
 	return dbus_start(ready_cb, (void *) config_file);
 }
 
 void manager_stop(void)
 {
+	l_info("Stopping manager ...");
+	l_queue_destroy(slave_list, foreach_slave_destroy);
 	slave_stop();
 	dbus_stop();
 }
