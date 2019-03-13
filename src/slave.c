@@ -148,6 +148,7 @@ static bool property_get_id(struct l_dbus *dbus,
 {
 	struct slave *slave = user_data;
 
+	/* modbus specific id */
 	l_dbus_message_builder_append_basic(builder, 'y', &slave->id);
 
 	return true;
@@ -160,6 +161,7 @@ static bool property_get_name(struct l_dbus *dbus,
 {
 	struct slave *slave = user_data;
 
+	/* Local name */
 	l_dbus_message_builder_append_basic(builder, 's', slave->name);
 
 	return true;
@@ -174,6 +176,7 @@ static struct l_dbus_message *property_set_name(struct l_dbus *dbus,
 	struct slave *slave = user_data;
 	const char *name;
 
+	/* Local name */
 	if (!l_dbus_message_iter_get_variant(new_value, "s", &name))
 		return dbus_error_invalid_args(msg);
 
@@ -212,8 +215,16 @@ const char *slave_create(uint8_t id, const char *name, const char *address)
 {
 	struct slave *slave;
 	char *dpath;
+	char hostname[128];
+	int port = -1;
 
 	/* "host:port or /dev/ttyACM0, /dev/ttyUSB0, ..."*/
+
+	memset(hostname, 0, sizeof(hostname));
+	if (sscanf(address, "%[^:]:%d", hostname, &port) != 2) {
+		l_error("Address (%s) not supported: Invalid format", address);
+		return NULL;
+	}
 
 	/* FIXME: id is not unique across PLCs */
 
@@ -237,7 +248,8 @@ const char *slave_create(uint8_t id, const char *name, const char *address)
 
 	slave->path = dpath;
 
-	l_info("New slave(%p): %s", slave, dpath);
+	l_info("Slave(%p): (%s) hostname: (%s) port: (%d)",
+					slave, dpath, hostname, port);
 
 	/* FIXME: Identifier is a PTR_TO_INT. Missing hashmap */
 
