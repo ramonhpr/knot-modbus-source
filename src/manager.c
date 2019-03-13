@@ -60,7 +60,7 @@ static void create_from_storage(const char *id,
 	if (sscanf(id, "%x", &slave_id) != 1)
 		return;
 
-	opath  = slave_create(slave_id, address, name);
+	opath  = slave_create(slave_id, name, address);
 	if (!opath)
 		return;
 
