@@ -27,6 +27,8 @@
 #include <stdio.h>
 #include <ell/ell.h>
 
+#include <modbus.h>
+
 #include "dbus.h"
 #include "source.h"
 #include "slave.h"
@@ -39,12 +41,14 @@ struct slave {
 	bool enable;
 	char *name;
 	char *path;
+	modbus_t *tcp;
 };
 
 static struct l_settings *settings;
 
 static void slave_free(struct slave *slave)
 {
+	modbus_free(slave->tcp);
 	l_free(slave->name);
 	l_free(slave->path);
 	l_free(slave);
@@ -273,6 +277,7 @@ const char *slave_create(uint8_t id, const char *name, const char *address)
 	slave->id = id;
 	slave->enable = false;
 	slave->name = l_strdup(name);
+	slave->tcp = NULL;
 
 	if (!l_dbus_register_object(dbus_get_bus(),
 				    dpath,

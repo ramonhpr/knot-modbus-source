@@ -28,8 +28,6 @@
 
 #include <ell/ell.h>
 
-#include <modbus.h>
-
 #include "dbus.h"
 #include "source.h"
 
@@ -42,12 +40,10 @@ struct source {
 	char *type;
 	uint16_t address;
 	uint16_t size;
-	modbus_t *tcp;
 };
 
 static void source_free(struct source *source)
 {
-	modbus_free(source->tcp);
 	l_free(source->name);
 	l_free(source->type);
 	l_free(source->path);
@@ -208,7 +204,6 @@ const char *source_create(const char *prefix, const char *name,
 	source->type = l_strdup(type);
 	source->address = address;
 	source->size = size;
-	source->tcp = NULL;
 	source->path = NULL;
 
 	/* TODO: Connect to peer */
