@@ -36,6 +36,7 @@
 struct slave {
 	int refs;
 	uint8_t id;
+	bool enable;
 	char *name;
 	char *path;
 };
@@ -188,6 +189,37 @@ static struct l_dbus_message *property_set_name(struct l_dbus *dbus,
 	return NULL;
 }
 
+static bool property_get_enable(struct l_dbus *dbus,
+				  struct l_dbus_message *msg,
+				  struct l_dbus_message_builder *builder,
+				  void *user_data)
+{
+	struct slave *slave = user_data;
+
+	l_dbus_message_builder_append_basic(builder, 'b', &slave->enable);
+
+	return true;
+}
+
+static struct l_dbus_message *property_set_enable(struct l_dbus *dbus,
+					 struct l_dbus_message *msg,
+					 struct l_dbus_message_iter *new_value,
+					 l_dbus_property_complete_cb_t complete,
+					 void *user_data)
+{
+	struct slave *slave = user_data;
+	bool enable;
+
+	if (!l_dbus_message_iter_get_variant(new_value, "b", &enable))
+		return dbus_error_invalid_args(msg);
+
+	slave->enable = enable;
+
+	complete(dbus, msg, NULL);
+
+	return NULL;
+}
+
 static void setup_interface(struct l_dbus_interface *interface)
 {
 
@@ -209,6 +241,13 @@ static void setup_interface(struct l_dbus_interface *interface)
 				       property_get_name,
 				       property_set_name))
 		l_error("Can't add 'Name' property");
+
+	/* Enable/Disable slave polling */
+	if (!l_dbus_interface_property(interface, "Enable", 0, "b",
+				       property_get_enable,
+				       property_set_enable))
+		l_error("Can't add 'Enable' property");
+
 }
 
 const char *slave_create(uint8_t id, const char *name, const char *address)
@@ -232,6 +271,7 @@ const char *slave_create(uint8_t id, const char *name, const char *address)
 
 	slave = l_new(struct slave, 1);
 	slave->id = id;
+	slave->enable = false;
 	slave->name = l_strdup(name);
 
 	if (!l_dbus_register_object(dbus_get_bus(),
