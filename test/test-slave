@@ -44,7 +44,10 @@ if (cmd == "add"):
         slave_dict.update({"Name": nameval})
         slave_dict.update({"Address": addrval})
         dbus_dict = dbus.Dictionary(slave_dict, signature='sv')
-        print ("PATH: %s" % manager.AddSlave(dbus_dict))
+        path = manager.AddSlave(dbus_dict);
+        print ("PATH: %s" % path)
+        slave = dbus.Interface(bus.get_object("br.org.cesar.modbus", path), "org.freedesktop.DBus.Properties")
+        slave.Set("br.org.cesar.modbus.Slave1", "Enable", True)
         sys.exit(0)
 
 if (cmd == "remove"):

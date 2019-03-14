@@ -28,6 +28,7 @@
 #include <ell/ell.h>
 
 #include <modbus.h>
+#include <string.h>
 
 #include "dbus.h"
 #include "source.h"
@@ -41,6 +42,8 @@ struct slave {
 	bool enable;
 	char *name;
 	char *path;
+	char *hostname;
+	int port;
 	modbus_t *tcp;
 };
 
@@ -48,7 +51,9 @@ static struct l_settings *settings;
 
 static void slave_free(struct slave *slave)
 {
+	modbus_close(slave->tcp);
 	modbus_free(slave->tcp);
+	l_free(slave->hostname);
 	l_free(slave->name);
 	l_free(slave->path);
 	l_free(slave);
@@ -199,8 +204,11 @@ static bool property_get_enable(struct l_dbus *dbus,
 				  void *user_data)
 {
 	struct slave *slave = user_data;
+	bool enable;
 
-	l_dbus_message_builder_append_basic(builder, 'b', &slave->enable);
+	enable = (slave->tcp ? true : false);
+
+	l_dbus_message_builder_append_basic(builder, 'b', &enable);
 
 	return true;
 }
@@ -213,14 +221,47 @@ static struct l_dbus_message *property_set_enable(struct l_dbus *dbus,
 {
 	struct slave *slave = user_data;
 	bool enable;
+	int err;
 
 	if (!l_dbus_message_iter_get_variant(new_value, "b", &enable))
 		return dbus_error_invalid_args(msg);
 
-	slave->enable = enable;
 
+	/* Shutdown modbus tcp */
+	if (enable == false) {
+
+		/* Already closed? */
+		if (slave->tcp == NULL)
+			goto done;
+
+		/* Releasing connection */
+		modbus_close(slave->tcp);
+		modbus_free(slave->tcp);
+		slave->tcp = NULL;
+	} else {
+		/* Enabling modbus tcp */
+
+		/* Already connected ? */
+		if (slave->tcp)
+			goto done;
+
+		slave->tcp = modbus_new_tcp(slave->hostname, slave->port);
+		if (modbus_connect(slave->tcp)  == 0)
+			goto done;
+
+		/* Releasing connection */
+		modbus_close(slave->tcp);
+		modbus_free(slave->tcp);
+		slave->tcp = NULL;
+
+		err = errno;
+		l_error("connect(): %s(%d)", strerror(err), err);
+		return l_dbus_message_new_error(msg,
+						KNOT_MODBUS_SERVICE ".Connect",
+						"%s", strerror(err));
+	}
+done:
 	complete(dbus, msg, NULL);
-
 	return NULL;
 }
 
@@ -277,6 +318,8 @@ const char *slave_create(uint8_t id, const char *name, const char *address)
 	slave->id = id;
 	slave->enable = false;
 	slave->name = l_strdup(name);
+	slave->hostname = l_strdup(hostname);
+	slave->port = port;
 	slave->tcp = NULL;
 
 	if (!l_dbus_register_object(dbus_get_bus(),
