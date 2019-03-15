@@ -248,15 +248,12 @@ static struct l_dbus_message *property_set_enable(struct l_dbus *dbus,
 			goto done;
 
 		/* Releasing connection */
+		err = errno;
 		modbus_close(slave->tcp);
 		modbus_free(slave->tcp);
 		slave->tcp = NULL;
 
-		err = errno;
-		l_error("connect(): %s(%d)", strerror(err), err);
-		return l_dbus_message_new_error(msg,
-						KNOT_MODBUS_SERVICE ".Connect",
-						"%s", strerror(err));
+		return dbus_error_errno(msg, "Connect", err);
 	}
 done:
 	complete(dbus, msg, NULL);

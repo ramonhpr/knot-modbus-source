@@ -19,7 +19,9 @@
  *
  */
 
+#include <errno.h>
 #include <stdio.h>
+
 #include <ell/ell.h>
 
 #include "dbus.h"
@@ -31,10 +33,22 @@ struct setup {
 	void *user_data;
 };
 
-struct l_dbus_message *dbus_error_invalid_args( struct l_dbus_message *msg)
+struct l_dbus_message *dbus_error_invalid_args(struct l_dbus_message *msg)
 {
 	return l_dbus_message_new_error(msg, KNOT_MODBUS_SERVICE ".InvalidArgs",
 					"Argument type is wrong");
+}
+
+struct l_dbus_message *dbus_error_errno(struct l_dbus_message *msg,
+					const char *suffix, int err)
+{
+	struct l_dbus_message *reply;
+	char *name = l_strdup_printf("%s.%s", KNOT_MODBUS_SERVICE, suffix);
+
+	reply = l_dbus_message_new_error(msg, name, "%s", strerror(err));
+	l_free(name);
+
+	return reply;
 }
 
 static void dbus_disconnect_callback(void *user_data)

@@ -28,6 +28,8 @@ typedef void (*dbus_setup_completed_func_t) (void *user_data);
 int dbus_start(dbus_setup_completed_func_t setup_cb, void *user_data);
 void dbus_stop(void);
 
-
-struct l_dbus_message *dbus_error_invalid_args( struct l_dbus_message *msg);
 struct l_dbus *dbus_get_bus(void);
+
+struct l_dbus_message *dbus_error_invalid_args(struct l_dbus_message *msg);
+struct l_dbus_message *dbus_error_errno(struct l_dbus_message *msg,
+					const char *suffix, int err);
