@@ -31,8 +31,6 @@
 #include "dbus.h"
 #include "source.h"
 
-#define SOURCE_IFACE	KNOT_MODBUS_SERVICE ".Source1"
-
 struct source {
 	int refs;
 	char *path;

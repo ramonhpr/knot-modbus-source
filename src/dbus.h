@@ -20,6 +20,8 @@
  */
 
 #define KNOT_MODBUS_SERVICE		"br.org.cesar.modbus"
+#define SLAVE_IFACE			KNOT_MODBUS_SERVICE".Slave1"
+#define SOURCE_IFACE			KNOT_MODBUS_SERVICE".Source1"
 
 typedef void (*dbus_setup_completed_func_t) (void *user_data);
 

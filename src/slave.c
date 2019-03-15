@@ -34,8 +34,6 @@
 #include "source.h"
 #include "slave.h"
 
-#define SLAVE_IFACE		"br.org.cesar.modbus.Slave1"
-
 struct slave {
 	int refs;
 	uint8_t id;
