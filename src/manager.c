@@ -107,8 +107,8 @@ static void foreach_slave_destroy(void *data)
 {
 	char *opath = data;
 
-	slave_destroy(opath);
 	l_info("Destroying slave %s", opath);
+	slave_destroy(opath);
 	l_free(opath);
 }
 

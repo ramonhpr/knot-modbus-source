@@ -46,6 +46,7 @@ static void source_free(struct source *source)
 	l_free(source->name);
 	l_free(source->type);
 	l_free(source->path);
+	l_info("source_free(%p)", source);
 	l_free(source);
 }
 
@@ -55,6 +56,7 @@ static struct source *source_ref(struct source *source)
 		return NULL;
 
 	__sync_fetch_and_add(&source->refs, 1);
+	l_info("source_ref(%p): %d", source, source->refs);
 
 	return source;
 }
@@ -64,6 +66,7 @@ static void source_unref(struct source *source)
 	if (unlikely(!source))
 		return;
 
+	l_info("source_unref(%p): %d", source, source->refs - 1);
 	if (__sync_sub_and_fetch(&source->refs, 1))
 		return;
 
@@ -207,7 +210,7 @@ void source_stop(void)
 				    SOURCE_IFACE);
 }
 
-const char *source_create(const char *prefix, const char *name,
+struct source *source_create(const char *prefix, const char *name,
 			  const char *type, uint16_t address,
 			  uint16_t size, uint16_t interval)
 {
@@ -219,6 +222,7 @@ const char *source_create(const char *prefix, const char *name,
 	dpath = l_strdup_printf("%s/source_%04x", prefix, address);
 
 	source = l_new(struct source, 1);
+	source->refs = 0;
 	source->name = l_strdup(name);
 	source->type = l_strdup(type);
 	source->address = address;
@@ -233,7 +237,8 @@ const char *source_create(const char *prefix, const char *name,
 				    source_ref(source),
 				    (l_dbus_destroy_func_t) source_unref,
 				    SOURCE_IFACE, source,
-				    L_DBUS_INTERFACE_PROPERTIES, source,
+				    L_DBUS_INTERFACE_PROPERTIES,
+				    source,
 				    NULL)) {
 		l_error("Can not register: %s", dpath);
 		l_free(dpath);
@@ -244,11 +249,24 @@ const char *source_create(const char *prefix, const char *name,
 
 	source->path = dpath;
 
-	return dpath;
+	return source_ref(source);
 }
 
-void source_destroy(const char *opath)
+void source_destroy(struct source *source)
 {
-	l_info("Destroying source: %s", opath);
-	l_dbus_unregister_object(dbus_get_bus(), opath);
+	if (unlikely(!source))
+		return;
+
+	l_info("Destroying source: %s", source->path);
+	l_dbus_unregister_object(dbus_get_bus(), source->path);
+
+	source_unref(source);
+}
+
+const char *source_get_path(const struct source *source)
+{
+	if (unlikely(!source))
+		return NULL;
+
+	return source->path;
 }

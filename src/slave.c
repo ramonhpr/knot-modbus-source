@@ -50,20 +50,22 @@ static struct l_settings *settings;
 
 static bool path_cmp(const void *a, const void *b)
 {
-	const char *a1 = a;
+	const struct source *source = a;
 	const char *b1 = b;
 
-	return (strcmp(a1, b1) == 0 ? true : false);
+	return (strcmp(source_get_path(source), b1) == 0 ? true : false);
 }
 
 static void slave_free(struct slave *slave)
 {
-	l_queue_destroy(slave->source_list, (l_queue_destroy_func_t) l_free);
+	l_queue_destroy(slave->source_list,
+			(l_queue_destroy_func_t) source_destroy);
 	modbus_close(slave->tcp);
 	modbus_free(slave->tcp);
 	l_free(slave->hostname);
 	l_free(slave->name);
 	l_free(slave->path);
+	l_info("slave_free(%p)", slave);
 	l_free(slave);
 }
 
@@ -73,6 +75,7 @@ static struct slave *slave_ref(struct slave *slave)
 		return NULL;
 
 	__sync_fetch_and_add(&slave->refs, 1);
+	l_info("slave_ref(%p): %d", slave, slave->refs);
 
 	return slave;
 }
@@ -82,6 +85,7 @@ static void slave_unref(struct slave *slave)
 	if (unlikely(!slave))
 		return;
 
+	l_info("slave_unref(%p): %d", slave, slave->refs - 1);
 	if (__sync_sub_and_fetch(&slave->refs, 1))
 		return;
 
@@ -99,11 +103,11 @@ static struct l_dbus_message *method_source_add(struct l_dbus *dbus,
 						void *user_data)
 {
 	struct slave *slave = user_data;
+	struct source *source;
 	struct l_dbus_message *reply;
 	struct l_dbus_message_builder *builder;
 	struct l_dbus_message_iter dict;
 	struct l_dbus_message_iter value;
-	const char *opath;
 	const char *key = NULL;
 	const char *name = NULL;
 	const char *type = NULL;
@@ -143,18 +147,20 @@ static struct l_dbus_message *method_source_add(struct l_dbus *dbus,
 		return dbus_error_invalid_args(msg);
 
 	/* TODO: Add to storage and create source object */
-	opath = source_create(slave->path, name, type, address, size, interval);
-	if (!opath)
+	source = source_create(slave->path, name, type,
+			       address, size, interval);
+	if (!source)
 		return dbus_error_invalid_args(msg);
 
 	/* Add object path to reply message */
 	reply = l_dbus_message_new_method_return(msg);
 	builder = l_dbus_message_builder_new(reply);
-	l_dbus_message_builder_append_basic(builder, 'o', opath);
+	l_dbus_message_builder_append_basic(builder, 'o',
+					    source_get_path(source));
 	l_dbus_message_builder_finalize(builder);
 	l_dbus_message_builder_destroy(builder);
 
-	l_queue_push_head(slave->source_list, l_strdup(opath));
+	l_queue_push_head(slave->source_list, source);
 
 	return reply;
 }
@@ -164,6 +170,7 @@ static struct l_dbus_message *method_source_remove(struct l_dbus *dbus,
 						void *user_data)
 {
 	struct slave *slave = user_data;
+	struct source *source;
 	const char *opath;
 
 	if (!l_dbus_message_get_arguments(msg, "o", &opath))
@@ -171,10 +178,11 @@ static struct l_dbus_message *method_source_remove(struct l_dbus *dbus,
 
 	/* TODO: remove from storage and destroy source object */
 
-	if (l_queue_remove_if(slave->source_list, path_cmp, opath) == NULL)
+	source = l_queue_remove_if(slave->source_list, path_cmp, opath);
+	if (unlikely(!source))
 		return dbus_error_invalid_args(msg);
 
-	source_destroy(opath);
+	source_destroy(source);
 
 	return l_dbus_message_new_method_return(msg);
 }
@@ -340,6 +348,7 @@ const char *slave_create(uint8_t id, const char *name, const char *address)
 	dpath = l_strdup_printf("/slave_%04x", id);
 
 	slave = l_new(struct slave, 1);
+	slave->refs = 0;
 	slave->id = id;
 	slave->enable = false;
 	slave->name = l_strdup(name);
@@ -353,7 +362,8 @@ const char *slave_create(uint8_t id, const char *name, const char *address)
 				    slave_ref(slave),
 				    (l_dbus_destroy_func_t) slave_unref,
 				    SLAVE_IFACE, slave,
-				    L_DBUS_INTERFACE_PROPERTIES, slave,
+				    L_DBUS_INTERFACE_PROPERTIES,
+				    slave,
 				    NULL)) {
 		l_error("Can not register: %s", dpath);
 		l_free(dpath);
@@ -404,5 +414,7 @@ int slave_start(const char *config_file)
 void slave_stop(void)
 {
 	source_stop();
+	l_dbus_unregister_interface(dbus_get_bus(),
+				    SLAVE_IFACE);
 	l_settings_free(settings);
 }
