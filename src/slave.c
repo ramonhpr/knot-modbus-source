@@ -43,12 +43,22 @@ struct slave {
 	char *hostname;
 	int port;
 	modbus_t *tcp;
+	struct l_queue *source_list;
 };
 
 static struct l_settings *settings;
 
+static bool path_cmp(const void *a, const void *b)
+{
+	const char *a1 = a;
+	const char *b1 = b;
+
+	return (strcmp(a1, b1) == 0 ? true : false);
+}
+
 static void slave_free(struct slave *slave)
 {
+	l_queue_destroy(slave->source_list, (l_queue_destroy_func_t) l_free);
 	modbus_close(slave->tcp);
 	modbus_free(slave->tcp);
 	l_free(slave->hostname);
@@ -144,6 +154,8 @@ static struct l_dbus_message *method_source_add(struct l_dbus *dbus,
 	l_dbus_message_builder_finalize(builder);
 	l_dbus_message_builder_destroy(builder);
 
+	l_queue_push_head(slave->source_list, l_strdup(opath));
+
 	return reply;
 }
 
@@ -151,12 +163,18 @@ static struct l_dbus_message *method_source_remove(struct l_dbus *dbus,
 						struct l_dbus_message *msg,
 						void *user_data)
 {
-	const char *path;
+	struct slave *slave = user_data;
+	const char *opath;
 
-	if (!l_dbus_message_get_arguments(msg, "o", &path))
+	if (!l_dbus_message_get_arguments(msg, "o", &opath))
 		return dbus_error_invalid_args(msg);
 
 	/* TODO: remove from storage and destroy source object */
+
+	if (l_queue_remove_if(slave->source_list, path_cmp, opath) == NULL)
+		return dbus_error_invalid_args(msg);
+
+	source_destroy(opath);
 
 	return l_dbus_message_new_method_return(msg);
 }
@@ -328,6 +346,7 @@ const char *slave_create(uint8_t id, const char *name, const char *address)
 	slave->hostname = l_strdup(hostname);
 	slave->port = port;
 	slave->tcp = NULL;
+	slave->source_list = l_queue_new();
 
 	if (!l_dbus_register_object(dbus_get_bus(),
 				    dpath,

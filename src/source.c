@@ -249,5 +249,6 @@ const char *source_create(const char *prefix, const char *name,
 
 void source_destroy(const char *opath)
 {
+	l_info("Destroying source: %s", opath);
 	l_dbus_unregister_object(dbus_get_bus(), opath);
 }
