@@ -25,5 +25,6 @@ int source_start(void);
 void source_stop(void);
 
 const char *source_create(const char *prefix, const char *name,
-			  const char *type, uint16_t address, uint16_t size);
+			  const char *type, uint16_t address,
+			  uint16_t size, uint16_t interval);
 void source_destroy(const char *opath);

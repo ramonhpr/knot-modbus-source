@@ -38,6 +38,7 @@ struct source {
 	char *type;
 	uint16_t address;
 	uint16_t size;
+	uint16_t interval;
 };
 
 static void source_free(struct source *source)
@@ -139,6 +140,18 @@ static bool property_get_size(struct l_dbus *dbus,
 	return true;
 }
 
+static bool property_get_interval(struct l_dbus *dbus,
+				  struct l_dbus_message *msg,
+				  struct l_dbus_message_builder *builder,
+				  void *user_data)
+{
+	struct source *source = user_data;
+
+	l_dbus_message_builder_append_basic(builder, 'q', &source->interval);
+
+	return true;
+}
+
 static void setup_interface(struct l_dbus_interface *interface)
 {
 	/* Variable alias */
@@ -159,11 +172,18 @@ static void setup_interface(struct l_dbus_interface *interface)
 				       NULL))
 		l_error("Can't add 'Address' property");
 
-	/* Variable size  */
+	/* Variable size */
 	if (!l_dbus_interface_property(interface, "Size", 0, "q",
 				       property_get_size,
 				       NULL))
 		l_error("Can't add 'Size' property");
+
+	/* Polling interval */
+	if (!l_dbus_interface_property(interface, "PollingInterval", 0, "q",
+				       property_get_interval,
+				       NULL))
+		l_error("Can't add 'PollingInterval' property");
+
 }
 
 int source_start(void)
@@ -188,7 +208,8 @@ void source_stop(void)
 }
 
 const char *source_create(const char *prefix, const char *name,
-			  const char *type, uint16_t address, uint16_t size)
+			  const char *type, uint16_t address,
+			  uint16_t size, uint16_t interval)
 {
 	struct source *source;
 	char *dpath;
@@ -203,6 +224,7 @@ const char *source_create(const char *prefix, const char *name,
 	source->address = address;
 	source->size = size;
 	source->path = NULL;
+	source->interval = interval;
 
 	/* TODO: Connect to peer */
 

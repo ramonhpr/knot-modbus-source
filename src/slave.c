@@ -99,6 +99,7 @@ static struct l_dbus_message *method_source_add(struct l_dbus *dbus,
 	const char *type = NULL;
 	uint16_t address = 0;
 	uint16_t size = 0;
+	uint16_t interval = 1000; /* ms */
 	bool ret;
 
 	if (!l_dbus_message_get_arguments(msg, "a{sv}", &dict))
@@ -117,6 +118,9 @@ static struct l_dbus_message *method_source_add(struct l_dbus *dbus,
 		else if (strcmp(key, "Size") == 0)
 			ret = l_dbus_message_iter_get_variant(&value,
 							      "q", &size);
+		else if (strcmp(key, "PollingInterval") == 0)
+			ret = l_dbus_message_iter_get_variant(&value,
+							      "q", &interval);
 		else
 			return dbus_error_invalid_args(msg);
 
@@ -129,7 +133,7 @@ static struct l_dbus_message *method_source_add(struct l_dbus *dbus,
 		return dbus_error_invalid_args(msg);
 
 	/* TODO: Add to storage and create source object */
-	opath = source_create(slave->path, name, type, address, size);
+	opath = source_create(slave->path, name, type, address, size, interval);
 	if (!opath)
 		return dbus_error_invalid_args(msg);
 
