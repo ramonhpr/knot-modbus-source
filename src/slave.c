@@ -99,20 +99,28 @@ static struct l_dbus_message *method_source_add(struct l_dbus *dbus,
 	const char *type = NULL;
 	uint16_t address = 0;
 	uint16_t size = 0;
+	bool ret;
 
 	if (!l_dbus_message_get_arguments(msg, "a{sv}", &dict))
 		return dbus_error_invalid_args(msg);
 
 	while (l_dbus_message_iter_next_entry(&dict, &key, &value)) {
 		if (strcmp(key, "Name") == 0)
-			l_dbus_message_iter_get_variant(&value, "s", &name);
+			ret = l_dbus_message_iter_get_variant(&value,
+							      "s", &name);
 		else if (strcmp(key, "Type") == 0)
-			l_dbus_message_iter_get_variant(&value, "s", &type);
+			ret = l_dbus_message_iter_get_variant(&value,
+							      "s", &type);
 		else if (strcmp(key, "Address") == 0)
-			l_dbus_message_iter_get_variant(&value, "q", &address);
+			ret = l_dbus_message_iter_get_variant(&value,
+							      "q", &address);
 		else if (strcmp(key, "Size") == 0)
-			l_dbus_message_iter_get_variant(&value, "q", &size);
+			ret = l_dbus_message_iter_get_variant(&value,
+							      "q", &size);
 		else
+			return dbus_error_invalid_args(msg);
+
+		if (!ret)
 			return dbus_error_invalid_args(msg);
 	}
 
