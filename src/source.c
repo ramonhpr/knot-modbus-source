@@ -270,3 +270,8 @@ const char *source_get_path(const struct source *source)
 
 	return source->path;
 }
+
+uint16_t source_get_interval(const struct source *source)
+{
+	return source->interval;
+}

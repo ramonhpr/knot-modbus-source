@@ -44,6 +44,7 @@ struct slave {
 	int port;
 	modbus_t *tcp;
 	struct l_queue *source_list;
+	struct l_hashmap *to_list;
 };
 
 static struct l_settings *settings;
@@ -56,11 +57,18 @@ static bool path_cmp(const void *a, const void *b)
 	return (strcmp(source_get_path(source), b1) == 0 ? true : false);
 }
 
+static void timeout_destroy(void *data)
+{
+	struct l_timeout *timeout = data;
+
+	l_timeout_remove(timeout);
+}
+
 static void slave_free(struct slave *slave)
 {
 	l_queue_destroy(slave->source_list,
 			(l_queue_destroy_func_t) source_destroy);
-
+	l_hashmap_destroy(slave->to_list, timeout_destroy);
 	modbus_close(slave->tcp);
 	modbus_free(slave->tcp);
 	l_free(slave->hostname);
@@ -91,6 +99,31 @@ static void slave_unref(struct slave *slave)
 		return;
 
 	slave_free(slave);
+}
+
+static void polling_to_expired(struct l_timeout *timeout, void *user_data)
+{
+	struct source *source = user_data;
+
+	l_info("modbus reading source %p", source);
+
+	l_timeout_modify_ms(timeout, source_get_interval(source));
+}
+
+static void polling_start(void *data, void *user_data)
+{
+	struct slave *slave = user_data;
+	struct source *source = data;
+	struct l_timeout *timeout;
+
+	timeout = l_timeout_create_ms(source_get_interval(source),
+				      polling_to_expired, source, NULL);
+
+	l_hashmap_insert(slave->to_list, source_get_path(source), timeout);
+
+	l_info("source(%p): %s interval: %d", source,
+	       source_get_path(source),
+	       source_get_interval(source));
 }
 
 static void settings_debug(const char *str, void *userdata)
@@ -282,8 +315,15 @@ static struct l_dbus_message *property_set_enable(struct l_dbus *dbus,
 			goto done;
 
 		slave->tcp = modbus_new_tcp(slave->hostname, slave->port);
-		if (modbus_connect(slave->tcp)  == 0)
+
+		err = modbus_connect(slave->tcp);
+		l_info("connect() %s:%d (%d)",
+		       slave->hostname, slave->port, err);
+		if (err != -1) {
+			l_queue_foreach(slave->source_list,
+					polling_start, slave);
 			goto done;
+		}
 
 		/* Releasing connection */
 		err = errno;
@@ -356,6 +396,7 @@ struct slave *slave_create(uint8_t id, const char *name, const char *address)
 	slave->port = port;
 	slave->tcp = NULL;
 	slave->source_list = l_queue_new();
+	slave->to_list = l_hashmap_string_new();
 
 	if (!l_dbus_register_object(dbus_get_bus(),
 				    dpath,

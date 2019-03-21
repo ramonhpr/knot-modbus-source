@@ -55,3 +55,10 @@ if (cmd == "remove"):
 	devpath = dbus.ObjectPath(args[1])
 	print (manager.RemoveSlave(devpath))
 	sys.exit(0)
+
+if (cmd == "enable"):
+        print ("PATH: %s" % path)
+        enable = dbus.Boolean(args[1])
+        slave = dbus.Interface(bus.get_object("br.org.cesar.modbus", path), "org.freedesktop.DBus.Properties")
+        slave.Set("br.org.cesar.modbus.Slave1", "Enable", enable)
+        sys.exit(0)
