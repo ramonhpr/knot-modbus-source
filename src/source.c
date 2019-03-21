@@ -254,12 +254,12 @@ struct source *source_create(const char *prefix, const char *name,
 
 void source_destroy(struct source *source)
 {
+	l_info("source_destroy(%p)", source);
+
 	if (unlikely(!source))
 		return;
 
-	l_info("Destroying source: %s", source->path);
 	l_dbus_unregister_object(dbus_get_bus(), source->path);
-
 	source_unref(source);
 }
 

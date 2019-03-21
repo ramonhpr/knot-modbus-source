@@ -60,6 +60,7 @@ static void slave_free(struct slave *slave)
 {
 	l_queue_destroy(slave->source_list,
 			(l_queue_destroy_func_t) source_destroy);
+
 	modbus_close(slave->tcp);
 	modbus_free(slave->tcp);
 	l_free(slave->hostname);
@@ -91,7 +92,6 @@ static void slave_unref(struct slave *slave)
 
 	slave_free(slave);
 }
-
 
 static void settings_debug(const char *str, void *userdata)
 {
@@ -328,7 +328,7 @@ static void setup_interface(struct l_dbus_interface *interface)
 
 }
 
-const char *slave_create(uint8_t id, const char *name, const char *address)
+struct slave *slave_create(uint8_t id, const char *name, const char *address)
 {
 	struct slave *slave;
 	char *dpath;
@@ -377,12 +377,26 @@ const char *slave_create(uint8_t id, const char *name, const char *address)
 
 	/* FIXME: Identifier is a PTR_TO_INT. Missing hashmap */
 
-	return dpath;
+	return slave_ref(slave);
 }
 
-void slave_destroy(const char *path)
+void slave_destroy(struct slave *slave)
 {
-	l_dbus_unregister_object(dbus_get_bus(), path);
+	l_info("slave_destroy(%p)", slave);
+
+	if (unlikely(!slave))
+		return;
+
+	l_dbus_unregister_object(dbus_get_bus(), slave->path);
+	slave_unref(slave);
+}
+
+const char *slave_get_path(const struct slave *slave)
+{
+	if (unlikely(!slave))
+		return NULL;
+
+	return slave->path;
 }
 
 int slave_start(const char *config_file)

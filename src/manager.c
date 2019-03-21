@@ -54,17 +54,17 @@ static bool path_cmp(const void *a, const void *b)
 static void create_from_storage(const char *id,
 				const char *address, const char *name)
 {
-	const char *opath;
+	struct slave *slave;
 	int slave_id;
 
 	if (sscanf(id, "%x", &slave_id) != 1)
 		return;
 
-	opath  = slave_create(slave_id, name, address);
-	if (!opath)
+	slave = slave_create(slave_id, name, address);
+	if (!slave)
 		return;
 
-	l_queue_push_head(slave_list, l_strdup(opath));
+	l_queue_push_head(slave_list, slave);
 }
 
 static void foreach_slave_register(const struct l_settings *settings,
@@ -102,20 +102,11 @@ static void foreach_slave_register(const struct l_settings *settings,
 	l_strfreev(groups);
 }
 
-
-static void foreach_slave_destroy(void *data)
-{
-	char *opath = data;
-
-	l_info("Destroying slave %s", opath);
-	slave_destroy(opath);
-	l_free(opath);
-}
-
 static struct l_dbus_message *method_slave_add(struct l_dbus *dbus,
 						struct l_dbus_message *msg,
 						void *user_data)
 {
+	struct slave *slave;
 	struct l_dbus_message *reply;
 	struct l_dbus_message_builder *builder;
 	struct l_dbus_message_iter dict;
@@ -124,7 +115,6 @@ static struct l_dbus_message *method_slave_add(struct l_dbus *dbus,
 	const char *name = NULL;
 	const char *address = NULL;
 	uint8_t slave_id = 0;
-	const char *opath;
 
 	if (!l_dbus_message_get_arguments(msg, "a{sv}", &dict))
 		return dbus_error_invalid_args(msg);
@@ -151,16 +141,17 @@ static struct l_dbus_message *method_slave_add(struct l_dbus *dbus,
 		return dbus_error_invalid_args(msg);
 
 	/* TODO: Add to storage and create slave object */
-	opath  = slave_create(slave_id, name ? : address, address);
-	if (!opath)
+	slave = slave_create(slave_id, name ? : address, address);
+	if (!slave)
 		return dbus_error_invalid_args(msg);
 
-	l_queue_push_head(slave_list, l_strdup(opath));
+	l_queue_push_head(slave_list, slave);
 
 	/* Add object path to reply message */
 	reply = l_dbus_message_new_method_return(msg);
 	builder = l_dbus_message_builder_new(reply);
-	l_dbus_message_builder_append_basic(builder, 'o', opath);
+	l_dbus_message_builder_append_basic(builder,
+					    'o', slave_get_path(slave));
 	l_dbus_message_builder_finalize(builder);
 	l_dbus_message_builder_destroy(builder);
 
@@ -171,16 +162,18 @@ static struct l_dbus_message *method_slave_remove(struct l_dbus *dbus,
 						struct l_dbus_message *msg,
 						void *user_data)
 {
+	struct slave *slave;
 	const char *opath;
 
 	if (!l_dbus_message_get_arguments(msg, "o", &opath))
 		return dbus_error_invalid_args(msg);
 
 	/* Belongs to list? */
-	if (l_queue_remove_if(slave_list, path_cmp, opath) == NULL)
+	slave = l_queue_remove_if(slave_list, path_cmp, opath);
+	if (!slave)
 		return dbus_error_invalid_args(msg);
 
-	slave_destroy(opath);
+	slave_destroy(slave);
 
 	/* TODO: remove from storage and destroy slave object */
 
@@ -246,7 +239,7 @@ int manager_start(const char *config_file)
 void manager_stop(void)
 {
 	l_info("Stopping manager ...");
-	l_queue_destroy(slave_list, foreach_slave_destroy);
+	l_queue_destroy(slave_list, (l_queue_destroy_func_t) slave_destroy);
 	slave_stop();
 	dbus_stop();
 }

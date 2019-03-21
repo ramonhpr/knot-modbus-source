@@ -29,5 +29,4 @@ struct source *source_create(const char *prefix, const char *name,
 			  const char *type, uint16_t address,
 			  uint16_t size, uint16_t interval);
 void source_destroy(struct source *source);
-
 const char *source_get_path(const struct source *source);
