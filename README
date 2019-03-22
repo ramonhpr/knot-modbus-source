@@ -1,3 +1,14 @@
 KNoT system service to allow modbus enabled devices to expose
 data through KNoT cloud service. This service act as a modbus
 TCP client polling data frequently from the sources(servers).
+
+
+## How to run Docker
+
+To build a image run:
+$ docker build -t modbus .
+
+To run the container:
+$ docker run -p 55556:55556 -it modbus
+
+A TCP dbus address is available in "tcp:host=localhost,port=55556"
