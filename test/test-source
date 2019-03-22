@@ -1,21 +1,13 @@
 #!/usr/bin/python
-from optparse import OptionParser, make_option
+import argparse
 import sys
 import dbus
 
-
-def main(options,args):
+def main(options):
     bus = dbus.SystemBus()
 
-    if (len(args) < 1):
-            print("Usage: %s <command>" % (sys.argv[0]))
-            print("")
-            print("  info")
-            print("  add [Name] [Type] [Address] [Size]")
-            print("  remove [source path]")
-            return 1
-
-    cmd = args[0]
+    cmd = options.command
+    cmd_value = options.value
     if (options.path):
         path = options.path
     else:
@@ -29,16 +21,17 @@ def main(options,args):
         return 0
 
     if (cmd == "add"):
+            [name, typesource, addr, size] = cmd_value
             print ("Adding source:")
-            print ("  Name:  %s" % args[1])
-            print ("  Type:  %s" % args[2])
-            print ("  Address:  %s" % args[3])
-            print ("  Size:  %s" % args[4])
+            print ("  Name:  %s" % name)
+            print ("  Type:  %s" % typesource)
+            print ("  Address:  %s" % addr)
+            print ("  Size:  %s" % size)
 
-            nameval = dbus.String(args[1])
-            typeval = dbus.String(args[2])
-            addrval = dbus.UInt16(args[3])
-            sizeval = dbus.UInt16(args[4])
+            nameval = dbus.String(name)
+            typeval = dbus.String(typesource)
+            addrval = dbus.UInt16(addr)
+            sizeval = dbus.UInt16(size)
             slave_dict = dict()
             slave_dict.update({"Name": nameval})
             slave_dict.update({"Type": typeval})
@@ -49,16 +42,25 @@ def main(options,args):
             return 0
 
     if (cmd == "remove"):
-        print ("Removing source %s" % args[1])
-        devpath = dbus.ObjectPath(args[1])
+        [objpath] = cmd_value
+        print ("Removing source %s" % objpath)
+        devpath = dbus.ObjectPath(objpath)
         print (slave.RemoveSource(devpath))
         return 0
 
 if __name__ == "__main__":
 
-    option_list = [ make_option("-p", "--path", action="store", type="string", dest="path"), ]
-    parser = OptionParser(option_list=option_list)
+    parser = argparse.ArgumentParser(description='Test dbus source')
+    parser.add_argument('-p', '--path', dest="path",
+                        help="object path from slave", metavar="PATH")
+    parser.add_argument('command', metavar='COMMAND', type=str, nargs='?',
+                        choices=['info', 'add', 'remove', 'enable'],
+                        help='Commands:\n \
+                        info,\n \
+                        add [Name] [Type] [Address] [Size]\n \
+                        remove [slave path]')
+    parser.add_argument('value', metavar='VALUE', nargs='*', help='value')
 
-    (options, args) = parser.parse_args()
-    ret = main(options, args)
+    options = parser.parse_args()
+    ret = main(options)
     sys.exit(ret)

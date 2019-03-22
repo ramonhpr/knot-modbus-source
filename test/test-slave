@@ -1,24 +1,25 @@
 #!/usr/bin/python
-from optparse import OptionParser, make_option
+import argparse
 import sys
 import dbus
 
+parser = argparse.ArgumentParser(description='Test dbus slave')
+parser.add_argument('-p', '--path', dest="path",
+                    help="object path from slave", metavar="PATH")
+parser.add_argument('command', metavar='COMMAND', type=str, nargs='?',
+                    choices=['info', 'add', 'remove', 'enable'],
+                    help='Commands:\n \
+                    info,\n \
+                    enable [value]\n \
+                    add [Id] [Name] [Address]\n \
+                    remove [slave path]')
+parser.add_argument('value', metavar='VALUE', nargs='*', help='value')
+options = parser.parse_args()
+
 bus = dbus.SystemBus()
 
-option_list = [ make_option("-p", "--path", action="store", type="string", dest="path"), ]
-parser = OptionParser(option_list=option_list)
-
-(options, args) = parser.parse_args()
-
-if (len(args) < 1):
-        print("Usage: %s <command>" % (sys.argv[0]))
-        print("")
-        print("  info")
-        print("  add [Id] [Name] [Address]")
-        print("  remove [slave path]")
-        sys.exit(1)
-
-cmd = args[0]
+cmd = options.command
+cmd_value = options.value
 if (options.path):
 	path = options.path
 else:
@@ -32,13 +33,14 @@ if (cmd == "info"):
 	sys.exit(0)
 
 if (cmd == "add"):
+        [slaveid, name, addr] = cmd_value
+        idval = dbus.Byte(int(slaveid))
+        nameval = dbus.String(name)
+        addrval = dbus.String(addr)
         print ("Adding slave:")
-        print ("  Id:  %s (1 - 247)" % args[1])
-        print ("  Name:  %s" % args[2])
-        print ("  Address:  %s (host:port)" % args[3])
-        idval = dbus.Byte(int(args[1]))
-        nameval = dbus.String(args[2])
-        addrval = dbus.String(args[3])
+        print ("  Id:  %s (1 - 247)" % slaveid)
+        print ("  Name:  %s" % nameval)
+        print ("  Address:  %s (host:port)" % addr)
         slave_dict = dict()
         slave_dict.update({"Id": idval})
         slave_dict.update({"Name": nameval})
@@ -51,14 +53,15 @@ if (cmd == "add"):
         sys.exit(0)
 
 if (cmd == "remove"):
-	print ("Removing slave %s" % args[1])
-	devpath = dbus.ObjectPath(args[1])
+        [objpath] = cmd_value
+	print ("Removing slave %s" % objpath)
+	devpath = dbus.ObjectPath(objpath)
 	print (manager.RemoveSlave(devpath))
 	sys.exit(0)
 
 if (cmd == "enable"):
-        print ("PATH: %s" % path)
-        enable = dbus.Boolean(args[1])
+        [value] = cmd_value
+        enable = dbus.Boolean(value)
         slave = dbus.Interface(bus.get_object("br.org.cesar.modbus", path), "org.freedesktop.DBus.Properties")
         slave.Set("br.org.cesar.modbus.Slave1", "Enable", enable)
         sys.exit(0)
