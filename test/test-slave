@@ -6,6 +6,8 @@ import dbus
 parser = argparse.ArgumentParser(description='Test dbus slave')
 parser.add_argument('-p', '--path', dest="path",
                     help="object path from slave", metavar="PATH")
+parser.add_argument('-a', '--dbus-address', dest="address", default="unix:path=/var/run/dbus/system_bus_address",
+                    help="dbus address to connect with", metavar="ADDRESS")
 parser.add_argument('command', metavar='COMMAND', type=str, nargs='?',
                     choices=['info', 'add', 'remove', 'enable'],
                     help='Commands:\n \
@@ -16,7 +18,10 @@ parser.add_argument('command', metavar='COMMAND', type=str, nargs='?',
 parser.add_argument('value', metavar='VALUE', nargs='*', help='value')
 options = parser.parse_args()
 
-bus = dbus.SystemBus()
+if (options.address):
+        bus = dbus.bus.BusConnection(options.address)
+else:
+        bus = dbus.SystemBus()
 
 cmd = options.command
 cmd_value = options.value

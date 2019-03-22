@@ -4,7 +4,10 @@ import sys
 import dbus
 
 def main(options):
-    bus = dbus.SystemBus()
+    if (options.address):
+        bus = dbus.bus.BusConnection(options.address)
+    else:
+        bus = dbus.SystemBus()
 
     cmd = options.command
     cmd_value = options.value
@@ -53,6 +56,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Test dbus source')
     parser.add_argument('-p', '--path', dest="path",
                         help="object path from slave", metavar="PATH")
+    parser.add_argument('-a', '--dbus-address', dest="address", default="unix:path=/var/run/dbus/system_bus_address",
+                    help="dbus address to connect with", metavar="ADDRESS")
     parser.add_argument('command', metavar='COMMAND', type=str, nargs='?',
                         choices=['info', 'add', 'remove', 'enable'],
                         help='Commands:\n \
