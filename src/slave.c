@@ -126,6 +126,47 @@ static void polling_start(void *data, void *user_data)
 	       source_get_interval(source));
 }
 
+static int enable_slave(struct slave *slave)
+{
+	int err;
+
+	/* Already connected ? */
+	if (slave->tcp)
+		return -EALREADY;
+
+	slave->tcp = modbus_new_tcp(slave->hostname, slave->port);
+
+	err = modbus_connect(slave->tcp);
+	l_info("connect() %s:%d (%d)", slave->hostname, slave->port, err);
+	if (err != -1) {
+		l_queue_foreach(slave->source_list,
+				polling_start, slave);
+		return 0;
+	}
+
+	/* Releasing connection */
+	err = errno;
+	modbus_close(slave->tcp);
+	modbus_free(slave->tcp);
+	slave->tcp = NULL;
+
+	return -err;
+}
+
+static int disable_slave(struct slave *slave)
+{
+	/* Already closed? */
+	if (slave->tcp == NULL)
+		return -EALREADY;
+
+	/* Releasing connection */
+	modbus_close(slave->tcp);
+	modbus_free(slave->tcp);
+	slave->tcp = NULL;
+
+	return 0;
+}
+
 static void settings_debug(const char *str, void *userdata)
 {
         l_info("%s\n", str);
@@ -290,50 +331,21 @@ static struct l_dbus_message *property_set_enable(struct l_dbus *dbus,
 {
 	struct slave *slave = user_data;
 	bool enable;
-	int err;
+	int ret;
 
 	if (!l_dbus_message_iter_get_variant(new_value, "b", &enable))
 		return dbus_error_invalid_args(msg);
 
+	if (enable == false)
+		/* Shutdown modbus tcp */
+		ret = disable_slave(slave);
+	else
+		/* Connect & enable polling */
+		ret = enable_slave(slave);
 
-	/* Shutdown modbus tcp */
-	if (enable == false) {
+	if (ret < 0 && ret != -EALREADY)
+		return dbus_error_errno(msg, "Connect", -ret);
 
-		/* Already closed? */
-		if (slave->tcp == NULL)
-			goto done;
-
-		/* Releasing connection */
-		modbus_close(slave->tcp);
-		modbus_free(slave->tcp);
-		slave->tcp = NULL;
-	} else {
-		/* Enabling modbus tcp */
-
-		/* Already connected ? */
-		if (slave->tcp)
-			goto done;
-
-		slave->tcp = modbus_new_tcp(slave->hostname, slave->port);
-
-		err = modbus_connect(slave->tcp);
-		l_info("connect() %s:%d (%d)",
-		       slave->hostname, slave->port, err);
-		if (err != -1) {
-			l_queue_foreach(slave->source_list,
-					polling_start, slave);
-			goto done;
-		}
-
-		/* Releasing connection */
-		err = errno;
-		modbus_close(slave->tcp);
-		modbus_free(slave->tcp);
-		slave->tcp = NULL;
-
-		return dbus_error_errno(msg, "Connect", err);
-	}
-done:
 	complete(dbus, msg, NULL);
 	return NULL;
 }
