@@ -60,6 +60,20 @@ def main(options,args):
         slave.Set("br.org.cesar.modbus.Slave1", "Enable", enable)
         return 0
 
+    if (cmd == "list"):
+        iface = dbus.Interface(obj,"org.freedesktop.DBus.ObjectManager")
+        slaves = []
+        for aux in iface.GetManagedObjects():
+                var = aux.split("/")
+                slaves.append(var[1])
+        slaves = list(set(slaves))
+
+        if not slaves:
+            print("No slaves found.")
+            return 0
+        else:
+            print("Slaves found: {}".format(slaves))
+            return 0
 
 if __name__ == "__main__":
     option_list = [ make_option("-p", "--path", action="store", type="string",
