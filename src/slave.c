@@ -41,7 +41,7 @@ struct slave {
 	char *name;
 	char *path;
 	char *hostname;
-	int port;
+	char *port; /* getaddrinfo service */
 	modbus_t *tcp;
 	struct l_queue *source_list;
 	struct l_hashmap *to_list;
@@ -72,6 +72,7 @@ static void slave_free(struct slave *slave)
 	modbus_close(slave->tcp);
 	modbus_free(slave->tcp);
 	l_free(slave->hostname);
+	l_free(slave->port);
 	l_free(slave->name);
 	l_free(slave->path);
 	l_info("slave_free(%p)", slave);
@@ -134,10 +135,10 @@ static int enable_slave(struct slave *slave)
 	if (slave->tcp)
 		return -EALREADY;
 
-	slave->tcp = modbus_new_tcp(slave->hostname, slave->port);
+	slave->tcp = modbus_new_tcp_pi(slave->hostname, slave->port);
 
 	err = modbus_connect(slave->tcp);
-	l_info("connect() %s:%d (%d)", slave->hostname, slave->port, err);
+	l_info("connect() %s:%s (%d)", slave->hostname, slave->port, err);
 	if (err != -1) {
 		l_queue_foreach(slave->source_list,
 				polling_start, slave);
@@ -385,12 +386,13 @@ struct slave *slave_create(uint8_t id, const char *name, const char *address)
 	struct slave *slave;
 	char *dpath;
 	char hostname[128];
-	int port = -1;
+	char port[8];
 
 	/* "host:port or /dev/ttyACM0, /dev/ttyUSB0, ..."*/
 
 	memset(hostname, 0, sizeof(hostname));
-	if (sscanf(address, "%[^:]:%d", hostname, &port) != 2) {
+	memset(port, 0, sizeof(port));
+	if (sscanf(address, "%127[^:]:%7s", hostname, port) != 2) {
 		l_error("Address (%s) not supported: Invalid format", address);
 		return NULL;
 	}
@@ -405,7 +407,7 @@ struct slave *slave_create(uint8_t id, const char *name, const char *address)
 	slave->enable = false;
 	slave->name = l_strdup(name);
 	slave->hostname = l_strdup(hostname);
-	slave->port = port;
+	slave->port = l_strdup(port);
 	slave->tcp = NULL;
 	slave->source_list = l_queue_new();
 	slave->to_list = l_hashmap_string_new();
@@ -425,7 +427,7 @@ struct slave *slave_create(uint8_t id, const char *name, const char *address)
 
 	slave->path = dpath;
 
-	l_info("Slave(%p): (%s) hostname: (%s) port: (%d)",
+	l_info("Slave(%p): (%s) hostname: (%s) port: (%s)",
 					slave, dpath, hostname, port);
 
 	/* FIXME: Identifier is a PTR_TO_INT. Missing hashmap */
