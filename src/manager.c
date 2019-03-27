@@ -118,6 +118,9 @@ static struct l_dbus_message *method_slave_add(struct l_dbus *dbus,
 	l_dbus_message_builder_finalize(builder);
 	l_dbus_message_builder_destroy(builder);
 
+	storage_write_key_string(slaves_fd, "0xffff", "Name", name);
+	storage_write_key_string(slaves_fd, "0xffff", "Address", address);
+
 	return reply;
 }
 

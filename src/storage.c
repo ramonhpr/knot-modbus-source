@@ -32,6 +32,28 @@
 
 static struct l_hashmap *storage_list = NULL;
 
+static int save_settings(int fd, struct l_settings *settings)
+{
+	char *res;
+	size_t res_len;
+	int err = 0;
+
+	res = l_settings_to_data(settings, &res_len);
+
+	if (ftruncate(fd, 0) == -1) {
+		err = -errno;
+		goto failure;
+	}
+
+	if (pwrite(fd, res, res_len, 0) < 0)
+		err = -errno;
+
+failure:
+	l_free(res);
+
+	return err;
+}
+
 int storage_open(const char *pathname)
 {
 	struct l_settings *settings;
@@ -96,6 +118,21 @@ void storage_foreach_slave(int fd, storage_foreach_slave_t func,
 	}
 
 	l_free(groups);
+}
+
+int storage_write_key_string(int fd, const char *group,
+			     const char *key, const char *value)
+{
+	struct l_settings *settings;
+
+	settings = l_hashmap_lookup(storage_list, L_INT_TO_PTR(fd));
+	if (!settings)
+		return -EIO;
+
+	if (l_settings_set_string(settings, group, key, value) == false)
+		return -EINVAL;
+
+	return save_settings(fd, settings);
 }
 
 
