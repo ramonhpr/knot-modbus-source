@@ -29,19 +29,15 @@
 
 #include "dbus.h"
 #include "slave.h"
+#include "storage.h"
 #include "manager.h"
 
 #define MANAGER_INTERFACE		"br.org.cesar.modbus.Manager1"
 
 typedef void (*foreach_source_func) (const char *id, const char *address, const char *name);
 
-static struct l_settings *settings;
 static struct l_queue *slave_list;
-
-static void settings_debug(const char *str, void *userdata)
-{
-        l_info("%s\n", str);
-}
+static int slaves_fd;
 
 static bool path_cmp(const void *a, const void *b)
 {
@@ -52,7 +48,9 @@ static bool path_cmp(const void *a, const void *b)
 }
 
 static void create_from_storage(const char *id,
-				const char *address, const char *name)
+				const char *name,
+				const char *address,
+				void *user_data)
 {
 	struct slave *slave;
 	int slave_id;
@@ -65,41 +63,6 @@ static void create_from_storage(const char *id,
 		return;
 
 	l_queue_push_head(slave_list, slave);
-}
-
-static void foreach_slave_register(const struct l_settings *settings,
-				   foreach_source_func func, void *user_data)
-{
-	char **groups;
-	char *name;
-	char *address;
-	int index;
-
-	groups = l_settings_get_groups(settings);
-	if (!groups)
-		return;
-
-	for (index = 0; groups[index] != NULL; index++) {
-
-		name = l_settings_get_string(settings,
-					     groups[index], "Name");
-		if (!name)
-			continue;
-
-		address = l_settings_get_string(settings,
-						groups[index], "Address");
-		if (!address) {
-			l_free(name);
-			continue;
-		}
-
-		func(groups[index], address, name);
-
-		l_free(address);
-		l_free(name);
-	}
-
-	l_strfreev(groups);
 }
 
 static struct l_dbus_message *method_slave_add(struct l_dbus *dbus,
@@ -212,28 +175,24 @@ static void ready_cb(void *user_data)
 		l_error("dbus: unable to add %s to '/'",
 			L_DBUS_INTERFACE_PROPERTIES);
 
-	slave_start(user_data);
+	slave_start();
+
+	/* Slave settings file */
+	slaves_fd = storage_open(user_data);
+	if (slaves_fd < 0)
+		return;
 
 	/* Registering all slaves */
-	foreach_slave_register(settings, create_from_storage, NULL);
+	storage_foreach_slave(slaves_fd, create_from_storage, NULL);
 }
 
-int manager_start(const char *config_file)
+int manager_start(const char *slaves_file)
 {
 	l_info("Starting manager ...");
 
-	/* Slave settings file */
-	settings = l_settings_new();
-	if (settings == NULL)
-		return -ENOMEM;
-
-	l_settings_set_debug(settings, settings_debug, NULL, NULL);
-	if (!l_settings_load_from_file(settings, config_file))
-		return -EIO;
-
 	slave_list = l_queue_new();
 
-	return dbus_start(ready_cb, (void *) config_file);
+	return dbus_start(ready_cb, (void *) slaves_file);
 }
 
 void manager_stop(void)
@@ -242,4 +201,5 @@ void manager_stop(void)
 	l_queue_destroy(slave_list, (l_queue_destroy_func_t) slave_destroy);
 	slave_stop();
 	dbus_stop();
+	storage_close(slaves_fd);
 }

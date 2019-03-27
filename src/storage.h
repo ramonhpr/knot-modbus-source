@@ -19,11 +19,13 @@
  *
  */
 
-int slave_start(void);
-void slave_stop(void);
+typedef void (storage_foreach_slave_t)(const char *id,
+				       const char *name,
+				       const char *address,
+				       void *user_data);
+void storage_foreach_slave(int fd,
+			   storage_foreach_slave_t func,
+			   void *user_data);
 
-struct slave;
-struct slave *slave_create(uint8_t id, const char *name,
-			const char *address);
-void slave_destroy(struct slave *slave);
-const char *slave_get_path(const struct slave *slave);
+int storage_open(const char *pathname);
+int storage_close(int fd);

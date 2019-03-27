@@ -47,8 +47,6 @@ struct slave {
 	struct l_hashmap *to_list;
 };
 
-static struct l_settings *settings;
-
 static bool path_cmp(const void *a, const void *b)
 {
 	const struct source *source = a;
@@ -166,11 +164,6 @@ static int disable_slave(struct slave *slave)
 	slave->tcp = NULL;
 
 	return 0;
-}
-
-static void settings_debug(const char *str, void *userdata)
-{
-        l_info("%s\n", str);
 }
 
 static struct l_dbus_message *method_source_add(struct l_dbus *dbus,
@@ -454,20 +447,9 @@ const char *slave_get_path(const struct slave *slave)
 	return slave->path;
 }
 
-int slave_start(const char *config_file)
+int slave_start(void)
 {
-
 	l_info("Starting slave ...");
-
-	settings = l_settings_new();
-	if (settings == NULL)
-		return -ENOMEM;
-
-	l_settings_set_debug(settings, settings_debug, NULL, NULL);
-	if (!l_settings_load_from_file(settings, config_file)) {
-		l_settings_free(settings);
-		return -EIO;
-	}
 
 	if (!l_dbus_register_interface(dbus_get_bus(),
 				       SLAVE_IFACE,
@@ -485,5 +467,4 @@ void slave_stop(void)
 	source_stop();
 	l_dbus_unregister_interface(dbus_get_bus(),
 				    SLAVE_IFACE);
-	l_settings_free(settings);
 }
