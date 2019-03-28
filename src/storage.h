@@ -31,6 +31,8 @@ void storage_foreach_slave(int fd,
 int storage_open(const char *pathname);
 int storage_close(int fd);
 
+int storage_remove_group(int fd, const char *group);
+
 int storage_write_key_string(int fd, const char *group,
 			     const char *key, const char *value);
 int storage_write_key_int(int fd, const char *group,

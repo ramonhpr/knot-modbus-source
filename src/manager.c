@@ -145,9 +145,10 @@ static struct l_dbus_message *method_slave_remove(struct l_dbus *dbus,
 		return dbus_error_invalid_args(msg);
 	}
 
-	slave_destroy(slave);
+	if (storage_remove_group(slaves_fd, slave_get_key(slave)) < 0)
+		l_info("storage(): Can't delete slave!");
 
-	/* TODO: remove from storage and destroy slave object */
+	slave_destroy(slave);
 
 	return l_dbus_message_new_method_return(msg);
 }

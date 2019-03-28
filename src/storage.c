@@ -152,3 +152,17 @@ int storage_write_key_int(int fd, const char *group, const char *key, int value)
 
 	return save_settings(fd, settings);
 }
+
+int storage_remove_group(int fd, const char *group)
+{
+	struct l_settings *settings;
+
+	settings = l_hashmap_lookup(storage_list, L_INT_TO_PTR(fd));
+	if (!settings)
+		return -EINVAL;
+
+	if (l_settings_remove_group(settings, group) == false)
+		return -EINVAL;
+
+	return save_settings(fd, settings);
+}

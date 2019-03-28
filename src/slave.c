@@ -449,6 +449,14 @@ const char *slave_get_path(const struct slave *slave)
 	return slave->path;
 }
 
+const char *slave_get_key(const struct slave *slave)
+{
+	if (unlikely(!slave))
+		return NULL;
+
+	return slave->key;
+}
+
 int slave_start(void)
 {
 	l_info("Starting slave ...");
