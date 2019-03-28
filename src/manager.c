@@ -34,8 +34,6 @@
 
 #define MANAGER_INTERFACE		"br.org.cesar.modbus.Manager1"
 
-typedef void (*foreach_source_func) (const char *id, const char *address, const char *name);
-
 static struct l_queue *slave_list;
 static int slaves_fd;
 
@@ -47,18 +45,15 @@ static bool path_cmp(const void *a, const void *b)
 	return (strcmp(a1, b1) == 0 ? true : false);
 }
 
-static void create_from_storage(const char *id,
+static void create_from_storage(const char *key,
+				int slave_id,
 				const char *name,
 				const char *address,
 				void *user_data)
 {
 	struct slave *slave;
-	int slave_id;
 
-	if (sscanf(id, "%x", &slave_id) != 1)
-		return;
-
-	slave = slave_create(slave_id, name, address);
+	slave = slave_create(key, slave_id, name, address);
 	if (!slave)
 		return;
 
@@ -78,6 +73,8 @@ static struct l_dbus_message *method_slave_add(struct l_dbus *dbus,
 	const char *name = NULL;
 	const char *address = NULL;
 	uint8_t slave_id = 0;
+	char randomkeystr[17];
+	uint64_t randomkey;
 
 	if (!l_dbus_message_get_arguments(msg, "a{sv}", &dict))
 		return dbus_error_invalid_args(msg);
@@ -103,8 +100,14 @@ static struct l_dbus_message *method_slave_add(struct l_dbus *dbus,
 	if (!address || slave_id == 0)
 		return dbus_error_invalid_args(msg);
 
-	/* TODO: Add to storage and create slave object */
-	slave = slave_create(slave_id, name ? : address, address);
+	if (l_getrandom(&randomkey, sizeof(randomkey)) == false) {
+		l_error("l_getrandom(): not supported");
+		return dbus_error_errno(msg, "Internal", ENOSYS);
+	}
+
+	snprintf(randomkeystr, sizeof(randomkeystr), "%016lx", randomkey);
+
+	slave = slave_create(randomkeystr, slave_id, name ? : address, address);
 	if (!slave)
 		return dbus_error_invalid_args(msg);
 
@@ -118,8 +121,9 @@ static struct l_dbus_message *method_slave_add(struct l_dbus *dbus,
 	l_dbus_message_builder_finalize(builder);
 	l_dbus_message_builder_destroy(builder);
 
-	storage_write_key_string(slaves_fd, "0xffff", "Name", name);
-	storage_write_key_string(slaves_fd, "0xffff", "Address", address);
+	storage_write_key_int(slaves_fd, randomkeystr, "Id", slave_id);
+	storage_write_key_string(slaves_fd, randomkeystr, "Name", name);
+	storage_write_key_string(slaves_fd, randomkeystr, "Address", address);
 
 	return reply;
 }

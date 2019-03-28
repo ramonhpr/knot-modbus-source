@@ -36,7 +36,8 @@
 
 struct slave {
 	int refs;
-	uint8_t id;
+	char *key;	/* Local random id */
+	uint8_t id;	/* modbus slave id */
 	bool enable;
 	char *name;
 	char *path;
@@ -69,6 +70,7 @@ static void slave_free(struct slave *slave)
 	l_hashmap_destroy(slave->to_list, timeout_destroy);
 	modbus_close(slave->tcp);
 	modbus_free(slave->tcp);
+	l_free(slave->key);
 	l_free(slave->hostname);
 	l_free(slave->port);
 	l_free(slave->name);
@@ -374,7 +376,8 @@ static void setup_interface(struct l_dbus_interface *interface)
 
 }
 
-struct slave *slave_create(uint8_t id, const char *name, const char *address)
+struct slave *slave_create(const char *key, uint8_t id,
+			   const char *name, const char *address)
 {
 	struct slave *slave;
 	char *dpath;
@@ -390,12 +393,11 @@ struct slave *slave_create(uint8_t id, const char *name, const char *address)
 		return NULL;
 	}
 
-	/* FIXME: id is not unique across PLCs */
-
-	dpath = l_strdup_printf("/slave_%04x", id);
+	dpath = l_strdup_printf("/slave_%s", key);
 
 	slave = l_new(struct slave, 1);
 	slave->refs = 0;
+	slave->key = l_strdup(key);
 	slave->id = id;
 	slave->enable = false;
 	slave->name = l_strdup(name);

@@ -96,6 +96,7 @@ void storage_foreach_slave(int fd, storage_foreach_slave_t func,
 	char *name;
 	char *address;
 	int i;
+	int id;
 
 	settings = l_hashmap_lookup(storage_list, L_INT_TO_PTR(fd));
 	if (!settings)
@@ -104,13 +105,16 @@ void storage_foreach_slave(int fd, storage_foreach_slave_t func,
 	groups = l_settings_get_groups(settings);
 
 	for (i = 0; groups[i] != NULL; i++) {
+		if (l_settings_get_int(settings, groups[i], "Id", &id) == false)
+			continue;
+
 		name = l_settings_get_string(settings, groups[i], "Name");
 		if (!name)
 			continue;
 
 		address = l_settings_get_string(settings, groups[i], "Address");
 		if (address)
-			func(groups[i], name, address, user_data);
+			func(groups[i], id, name, address, user_data);
 
 		l_free(address);
 		l_free(name);
@@ -135,4 +139,16 @@ int storage_write_key_string(int fd, const char *group,
 	return save_settings(fd, settings);
 }
 
+int storage_write_key_int(int fd, const char *group, const char *key, int value)
+{
+	struct l_settings *settings;
 
+	settings = l_hashmap_lookup(storage_list, L_INT_TO_PTR(fd));
+	if (!settings)
+		return -EINVAL;
+
+	if (l_settings_set_int(settings, group, key, value) == false)
+		return -EINVAL;
+
+	return save_settings(fd, settings);
+}

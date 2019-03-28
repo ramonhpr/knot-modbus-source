@@ -19,7 +19,8 @@
  *
  */
 
-typedef void (storage_foreach_slave_t)(const char *id,
+typedef void (storage_foreach_slave_t)(const char *key,
+				       int id,
 				       const char *name,
 				       const char *address,
 				       void *user_data);
@@ -32,3 +33,5 @@ int storage_close(int fd);
 
 int storage_write_key_string(int fd, const char *group,
 			     const char *key, const char *value);
+int storage_write_key_int(int fd, const char *group,
+			  const char *key, int value);
