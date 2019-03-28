@@ -39,10 +39,10 @@ static int slaves_fd;
 
 static bool path_cmp(const void *a, const void *b)
 {
-	const char *a1 = a;
+	const struct slave *slave = a;
 	const char *b1 = b;
 
-	return (strcmp(a1, b1) == 0 ? true : false);
+	return (strcmp(slave_get_path(slave), b1) == 0 ? true : false);
 }
 
 static void create_from_storage(const char *key,
@@ -140,8 +140,10 @@ static struct l_dbus_message *method_slave_remove(struct l_dbus *dbus,
 
 	/* Belongs to list? */
 	slave = l_queue_remove_if(slave_list, path_cmp, opath);
-	if (!slave)
+	if (!slave) {
+		l_error("Slave does not exist!");
 		return dbus_error_invalid_args(msg);
+	}
 
 	slave_destroy(slave);
 
