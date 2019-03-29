@@ -69,7 +69,7 @@ def main(options,args):
 
     if (cmd == "remove"):
         print ("Removing source %s" % args[1])
-        devpath = dbus.ObjectPath(args[1])
+        devpath = dbus.ObjectPath(path+args[1])
         print (slave.RemoveSource(devpath))
         return 0
 
