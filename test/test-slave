@@ -38,8 +38,10 @@ def main(options):
         slave_dict.update({"Name": nameval})
         slave_dict.update({"Address": addrval})
         dbus_dict = dbus.Dictionary(slave_dict, signature='sv')
-        path = manager.AddSlave(dbus_dict);
-        print ("PATH: %s" % path)
+        slave_path = manager.AddSlave(dbus_dict)
+        print ("PATH: %s" % slave_path)
+        obj_slave = bus.get_object("br.org.cesar.modbus", slave_path)
+        props = dbus.Interface(obj_slave, "org.freedesktop.DBus.Properties")
         props.Set("br.org.cesar.modbus.Slave1", "Enable", True)
         return 0
 
