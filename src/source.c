@@ -271,6 +271,14 @@ const char *source_get_path(const struct source *source)
 	return source->path;
 }
 
+uint16_t source_get_address(const struct source *source)
+{
+	if (unlikely(!source))
+		return 0xffff;
+
+	return source->address;
+}
+
 uint16_t source_get_interval(const struct source *source)
 {
 	return source->interval;

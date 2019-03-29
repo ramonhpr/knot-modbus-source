@@ -31,6 +31,7 @@
 #include <string.h>
 
 #include "dbus.h"
+#include "storage.h"
 #include "source.h"
 #include "slave.h"
 
@@ -46,6 +47,7 @@ struct slave {
 	modbus_t *tcp;
 	struct l_queue *source_list;
 	struct l_hashmap *to_list;
+	int sources_fd;
 };
 
 static bool path_cmp(const void *a, const void *b)
@@ -70,6 +72,7 @@ static void slave_free(struct slave *slave)
 	l_hashmap_destroy(slave->to_list, timeout_destroy);
 	modbus_close(slave->tcp);
 	modbus_free(slave->tcp);
+	storage_close(slave->sources_fd);
 	l_free(slave->key);
 	l_free(slave->hostname);
 	l_free(slave->port);
@@ -178,6 +181,7 @@ static struct l_dbus_message *method_source_add(struct l_dbus *dbus,
 	struct l_dbus_message_builder *builder;
 	struct l_dbus_message_iter dict;
 	struct l_dbus_message_iter value;
+	char addrstr[7];
 	const char *key = NULL;
 	const char *name = NULL;
 	const char *type = NULL;
@@ -216,7 +220,6 @@ static struct l_dbus_message *method_source_add(struct l_dbus *dbus,
 	if (!name || !type || address == 0 || size == 0)
 		return dbus_error_invalid_args(msg);
 
-	/* TODO: Add to storage and create source object */
 	source = source_create(slave->path, name, type,
 			       address, size, interval);
 	if (!source)
@@ -232,6 +235,16 @@ static struct l_dbus_message *method_source_add(struct l_dbus *dbus,
 
 	l_queue_push_head(slave->source_list, source);
 
+	snprintf(addrstr, sizeof(addrstr), "0x%04x", address);
+	storage_write_key_string(slave->sources_fd, addrstr,
+				 "Name", name);
+	storage_write_key_string(slave->sources_fd, addrstr,
+				 "Type", type);
+	storage_write_key_int(slave->sources_fd, addrstr,
+			      "Size", size);
+	storage_write_key_int(slave->sources_fd, addrstr,
+			      "PollingInterval", interval);
+
 	return reply;
 }
 
@@ -242,15 +255,20 @@ static struct l_dbus_message *method_source_remove(struct l_dbus *dbus,
 	struct slave *slave = user_data;
 	struct source *source;
 	const char *opath;
+	char addrstr[7];
 
 	if (!l_dbus_message_get_arguments(msg, "o", &opath))
 		return dbus_error_invalid_args(msg);
 
-	/* TODO: remove from storage and destroy source object */
-
 	source = l_queue_remove_if(slave->source_list, path_cmp, opath);
 	if (unlikely(!source))
 		return dbus_error_invalid_args(msg);
+
+	snprintf(addrstr, sizeof(addrstr), "0x%04x",
+		 source_get_address(source));
+
+	if (storage_remove_group(slave->sources_fd, addrstr) < 0)
+		l_info("storage(): Can't delete source!");
 
 	source_destroy(source);
 
@@ -381,6 +399,7 @@ struct slave *slave_create(const char *key, uint8_t id,
 {
 	struct slave *slave;
 	char *dpath;
+	char *filename;
 	char hostname[128];
 	char port[8];
 
@@ -407,6 +426,11 @@ struct slave *slave_create(const char *key, uint8_t id,
 	slave->source_list = l_queue_new();
 	slave->to_list = l_hashmap_string_new();
 
+	/* FIXME: missing absolute path & create dirs */
+	filename = l_strdup_printf("%s/sources.conf", slave->key);
+	slave->sources_fd = storage_open(filename);
+	l_free(filename);
+
 	if (!l_dbus_register_object(dbus_get_bus(),
 				    dpath,
 				    slave_ref(slave),
@@ -424,8 +448,6 @@ struct slave *slave_create(const char *key, uint8_t id,
 
 	l_info("Slave(%p): (%s) hostname: (%s) port: (%s)",
 					slave, dpath, hostname, port);
-
-	/* FIXME: Identifier is a PTR_TO_INT. Missing hashmap */
 
 	return slave_ref(slave);
 }
