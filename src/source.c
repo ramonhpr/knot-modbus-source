@@ -131,14 +131,17 @@ static bool property_get_address(struct l_dbus *dbus,
 	return true;
 }
 
-static bool property_get_size(struct l_dbus *dbus,
+static bool property_get_value(struct l_dbus *dbus,
 				  struct l_dbus_message *msg,
 				  struct l_dbus_message_builder *builder,
 				  void *user_data)
 {
 	struct source *source = user_data;
 
+	/* FIXME: Needs to be more generic */
+	l_dbus_message_builder_enter_variant(builder, "q");
 	l_dbus_message_builder_append_basic(builder, 'q', &source->size);
+	l_dbus_message_builder_leave_variant(builder);
 
 	return true;
 }
@@ -176,10 +179,10 @@ static void setup_interface(struct l_dbus_interface *interface)
 		l_error("Can't add 'Address' property");
 
 	/* Variable size */
-	if (!l_dbus_interface_property(interface, "Size", 0, "q",
-				       property_get_size,
+	if (!l_dbus_interface_property(interface, "Value", 0, "v",
+				       property_get_value,
 				       NULL))
-		l_error("Can't add 'Size' property");
+		l_error("Can't add 'Value' property");
 
 	/* Polling interval */
 	if (!l_dbus_interface_property(interface, "PollingInterval", 0, "q",
