@@ -118,10 +118,9 @@ void storage_foreach_slave(int fd, storage_foreach_slave_t func,
 
 		l_free(address);
 		l_free(name);
-		l_free(groups[i]);
 	}
 
-	l_free(groups);
+	l_strfreev(groups);
 }
 
 int storage_write_key_string(int fd, const char *group,
