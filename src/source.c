@@ -35,16 +35,24 @@ struct source {
 	int refs;
 	char *path;
 	char *name;
-	char *type;
+	char *sig;
 	uint16_t address;
 	uint16_t size;
 	uint16_t interval;
+	union {
+		bool vbool;
+		uint8_t vu8;
+		uint16_t vu16;
+		int16_t vs16;
+		uint32_t vu32;
+		int32_t vs32;
+	} value;
 };
 
 static void source_free(struct source *source)
 {
 	l_free(source->name);
-	l_free(source->type);
+	l_free(source->sig);
 	l_free(source->path);
 	l_info("source_free(%p)", source);
 	l_free(source);
@@ -107,14 +115,14 @@ static struct l_dbus_message *property_set_name(struct l_dbus *dbus,
 	return NULL;
 }
 
-static bool property_get_type(struct l_dbus *dbus,
+static bool property_get_signature(struct l_dbus *dbus,
 				  struct l_dbus_message *msg,
 				  struct l_dbus_message_builder *builder,
 				  void *user_data)
 {
 	struct source *source = user_data;
 
-	l_dbus_message_builder_append_basic(builder, 's', source->type);
+	l_dbus_message_builder_append_basic(builder, 's', source->sig);
 
 	return true;
 }
@@ -138,9 +146,9 @@ static bool property_get_value(struct l_dbus *dbus,
 {
 	struct source *source = user_data;
 
-	/* FIXME: Needs to be more generic */
-	l_dbus_message_builder_enter_variant(builder, "q");
-	l_dbus_message_builder_append_basic(builder, 'q', &source->size);
+	l_dbus_message_builder_enter_variant(builder, source->sig);
+	l_dbus_message_builder_append_basic(builder,
+					    source->sig[0], &source->value);
 	l_dbus_message_builder_leave_variant(builder);
 
 	return true;
@@ -166,9 +174,9 @@ static void setup_interface(struct l_dbus_interface *interface)
 				       property_set_name))
 		l_error("Can't add 'Name' property");
 
-	/* Variable type: coil/register/... */
-	if (!l_dbus_interface_property(interface, "Type", 0, "s",
-				       property_get_type,
+	/* Variable Signature: Applying D-Bus types to iiot */
+	if (!l_dbus_interface_property(interface, "Signature", 0, "s",
+				       property_get_signature,
 				       NULL))
 		l_error("Can't add 'Type' property");
 
@@ -214,7 +222,7 @@ void source_stop(void)
 }
 
 struct source *source_create(const char *prefix, const char *name,
-			  const char *type, uint16_t address,
+			  const char *sig, uint16_t address,
 			  uint16_t size, uint16_t interval)
 {
 	struct source *source;
@@ -227,11 +235,12 @@ struct source *source_create(const char *prefix, const char *name,
 	source = l_new(struct source, 1);
 	source->refs = 0;
 	source->name = l_strdup(name);
-	source->type = l_strdup(type);
+	source->sig= l_strdup(sig);
 	source->address = address;
 	source->size = size;
 	source->path = NULL;
 	source->interval = interval;
+	memset(&source->value, 0, sizeof(source->value));
 
 	/* TODO: Connect to peer */
 
@@ -285,4 +294,65 @@ uint16_t source_get_address(const struct source *source)
 uint16_t source_get_interval(const struct source *source)
 {
 	return source->interval;
+}
+
+bool source_set_value_bool(struct source *source, bool value)
+{
+	if (unlikely(!source))
+		return false;
+
+
+	source->value.vbool = value;
+
+	return true;
+}
+
+bool source_set_value_byte(struct source *source, uint8_t value)
+{
+	if (unlikely(!source))
+		return false;
+
+	source->value.vu8 = value;
+
+	return true;
+}
+
+bool source_set_value_u16(struct source *source, uint16_t value)
+{
+	if (unlikely(!source))
+		return false;
+
+	source->value.vu16 = value;
+
+	return true;
+}
+
+bool source_set_value_s16(struct source *source, int16_t value)
+{
+	if (unlikely(!source))
+		return false;
+
+	source->value.vs16 = value;
+
+	return true;
+}
+
+bool source_set_value_u32(struct source *source, uint32_t value)
+{
+	if (unlikely(!source))
+		return false;
+
+	source->value.vu32 = value;
+
+	return true;
+}
+
+bool source_set_value_s32(struct source *source, int32_t value)
+{
+	if (unlikely(!source))
+		return false;
+
+	source->value.vs32 = value;
+
+	return true;
 }
