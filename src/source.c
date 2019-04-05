@@ -337,33 +337,3 @@ bool source_set_value_u16(struct source *source, uint16_t value)
 
 	return true;
 }
-
-bool source_set_value_s16(struct source *source, int16_t value)
-{
-	if (unlikely(!source))
-		return false;
-
-	source->value.vs16 = value;
-
-	return true;
-}
-
-bool source_set_value_u32(struct source *source, uint32_t value)
-{
-	if (unlikely(!source))
-		return false;
-
-	source->value.vu32 = value;
-
-	return true;
-}
-
-bool source_set_value_s32(struct source *source, int32_t value)
-{
-	if (unlikely(!source))
-		return false;
-
-	source->value.vs32 = value;
-
-	return true;
-}

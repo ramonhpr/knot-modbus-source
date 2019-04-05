@@ -139,8 +139,6 @@ static void polling_to_expired(struct l_timeout *timeout, void *user_data)
 		if (ret == 0)
 			source_set_value_u16(source, val_u16);
 		break;
-	case 'u':
-		break;
 	default:
 		break;
 	}
