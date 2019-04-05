@@ -50,6 +50,11 @@ struct slave {
 	int sources_fd;
 };
 
+struct bond {
+	struct slave *slave;
+	struct source *source;
+};
+
 static bool path_cmp(const void *a, const void *b)
 {
 	const struct source *source = a;
@@ -107,9 +112,43 @@ static void slave_unref(struct slave *slave)
 
 static void polling_to_expired(struct l_timeout *timeout, void *user_data)
 {
-	struct source *source = user_data;
+	struct bond *bond = user_data;
+	struct source *source = bond->source;
+	struct slave *slave = bond->slave;
+	const char *sig = source_get_signature(source);
+	uint16_t u16_addr = source_get_address(source);
+	uint8_t val_u8 = 0;
+	uint16_t val_u16 = 0;
+	int ret = 0, err;
 
-	l_info("modbus reading source %p", source);
+	l_info("modbus reading source %p sig:(%s)", source, sig);
+
+	switch (sig[0]) {
+	case 'b':
+		ret = modbus_read_input_bits(slave->tcp, u16_addr, 1, &val_u8);
+		if (ret == 0)
+			source_set_value_bool(source, val_u8 ? true : false);
+		break;
+	case 'y':
+		ret = modbus_read_input_bits(slave->tcp, u16_addr, 8, &val_u8);
+		if (ret == 0)
+			source_set_value_byte(source, val_u8);
+		break;
+	case 'q':
+		ret = modbus_read_registers(slave->tcp, u16_addr, 1, &val_u16);
+		if (ret == 0)
+			source_set_value_u16(source, val_u16);
+		break;
+	case 'u':
+		break;
+	default:
+		break;
+	}
+
+	if (ret == -1) {
+		err = errno;
+		l_error("read(%x): %s(%d)", u16_addr, strerror(err), err);
+	}
 
 	l_timeout_modify_ms(timeout, source_get_interval(source));
 }
@@ -119,9 +158,14 @@ static void polling_start(void *data, void *user_data)
 	struct slave *slave = user_data;
 	struct source *source = data;
 	struct l_timeout *timeout;
+	struct bond *bond;
+
+	bond = l_new(struct bond, 1);
+	bond->source = source;
+	bond->slave = slave;
 
 	timeout = l_timeout_create_ms(source_get_interval(source),
-				      polling_to_expired, source, NULL);
+				      polling_to_expired, bond, l_free);
 
 	l_hashmap_insert(slave->to_list, source_get_path(source), timeout);
 
@@ -139,6 +183,7 @@ static int enable_slave(struct slave *slave)
 		return -EALREADY;
 
 	slave->tcp = modbus_new_tcp_pi(slave->hostname, slave->port);
+	modbus_set_slave(slave->tcp, slave->id);
 
 	err = modbus_connect(slave->tcp);
 	l_info("connect() %s:%s (%d)", slave->hostname, slave->port, err);
