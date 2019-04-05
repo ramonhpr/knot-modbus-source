@@ -122,7 +122,8 @@ static struct l_dbus_message *method_slave_add(struct l_dbus *dbus,
 	l_dbus_message_builder_destroy(builder);
 
 	storage_write_key_int(slaves_fd, randomkeystr, "Id", slave_id);
-	storage_write_key_string(slaves_fd, randomkeystr, "Name", name);
+	storage_write_key_string(slaves_fd, randomkeystr, "Name",
+				 name ? : address);
 	storage_write_key_string(slaves_fd, randomkeystr, "Address", address);
 
 	return reply;
