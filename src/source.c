@@ -312,8 +312,13 @@ bool source_set_value_bool(struct source *source, bool value)
 	if (unlikely(!source))
 		return false;
 
+	if (source->value.vbool == value)
+		return true;
 
 	source->value.vbool = value;
+
+	l_dbus_property_changed(dbus_get_bus(), source->path,
+				SOURCE_IFACE, "Value");
 
 	return true;
 }
@@ -323,7 +328,13 @@ bool source_set_value_byte(struct source *source, uint8_t value)
 	if (unlikely(!source))
 		return false;
 
+	if (source->value.vu8 == value)
+		return true;
+
 	source->value.vu8 = value;
+
+	l_dbus_property_changed(dbus_get_bus(), source->path,
+				SOURCE_IFACE, "Value");
 
 	return true;
 }
@@ -333,7 +344,13 @@ bool source_set_value_u16(struct source *source, uint16_t value)
 	if (unlikely(!source))
 		return false;
 
+	if (source->value.vu16 == value)
+		return true;
+
 	source->value.vu16 = value;
+
+	l_dbus_property_changed(dbus_get_bus(), source->path,
+				SOURCE_IFACE, "Value");
 
 	return true;
 }
