@@ -121,22 +121,23 @@ static void polling_to_expired(struct l_timeout *timeout, void *user_data)
 	uint16_t val_u16 = 0;
 	int ret = 0, err;
 
-	l_info("modbus reading source %p sig:(%s)", source, sig);
+	l_info("modbus reading source %p addr:(0x%x)", source, u16_addr);
 
 	switch (sig[0]) {
 	case 'b':
 		ret = modbus_read_input_bits(slave->tcp, u16_addr, 1, &val_u8);
-		if (ret == 0)
+		if (ret != -1)
 			source_set_value_bool(source, val_u8 ? true : false);
 		break;
 	case 'y':
 		ret = modbus_read_input_bits(slave->tcp, u16_addr, 8, &val_u8);
-		if (ret == 0)
+		if (ret != -1)
 			source_set_value_byte(source, val_u8);
+
 		break;
 	case 'q':
 		ret = modbus_read_registers(slave->tcp, u16_addr, 1, &val_u16);
-		if (ret == 0)
+		if (ret != -1)
 			source_set_value_u16(source, val_u16);
 		break;
 	default:
