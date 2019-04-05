@@ -37,7 +37,6 @@ struct source {
 	char *name;
 	char *sig;
 	uint16_t address;
-	uint16_t size;
 	uint16_t interval;
 	union {
 		bool vbool;
@@ -186,7 +185,7 @@ static void setup_interface(struct l_dbus_interface *interface)
 				       NULL))
 		l_error("Can't add 'Address' property");
 
-	/* Variable size */
+	/* Variable RAW Value */
 	if (!l_dbus_interface_property(interface, "Value", 0, "v",
 				       property_get_value,
 				       NULL))
@@ -222,8 +221,7 @@ void source_stop(void)
 }
 
 struct source *source_create(const char *prefix, const char *name,
-			  const char *sig, uint16_t address,
-			  uint16_t size, uint16_t interval)
+			  const char *sig, uint16_t address, uint16_t interval)
 {
 	struct source *source;
 	char *dpath;
@@ -237,7 +235,6 @@ struct source *source_create(const char *prefix, const char *name,
 	source->name = l_strdup(name);
 	source->sig= l_strdup(sig);
 	source->address = address;
-	source->size = size;
 	source->path = NULL;
 	source->interval = interval;
 	memset(&source->value, 0, sizeof(source->value));

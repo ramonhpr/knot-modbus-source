@@ -11,7 +11,7 @@ def main(options,args):
         print("Usage: %s <command>" % (sys.argv[0]))
         print("")
         print("  info")
-        print("  add [Name] [Type] [Address] [Size]")
+        print("  add [Name] [Type] [Address]")
         print("  remove [source path]")
         return 1
 
@@ -34,17 +34,14 @@ def main(options,args):
         print ("  Name:  %s" % args[1])
         print ("  Type:  %s" % args[2])
         print ("  Address:  %s" % args[3])
-        print ("  Size:  %s" % args[4])
 
         nameval = dbus.String(args[1])
         typeval = dbus.String(args[2])
         addrval = dbus.UInt16(args[3])
-        sizeval = dbus.UInt16(args[4])
         slave_dict = dict()
         slave_dict.update({"Name": nameval})
         slave_dict.update({"Type": typeval})
         slave_dict.update({"Address": addrval})
-        slave_dict.update({"Size": sizeval})
         dbus_dict = dbus.Dictionary(slave_dict, signature='sv')
         print ("PATH: %s" % slave.AddSource(dbus_dict))
         return 0

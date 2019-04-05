@@ -230,7 +230,6 @@ static struct l_dbus_message *method_source_add(struct l_dbus *dbus,
 	const char *name = NULL;
 	const char *type = NULL;
 	uint16_t address = 0;
-	uint16_t size = 0;
 	uint16_t interval = 1000; /* ms */
 	bool ret;
 
@@ -247,9 +246,6 @@ static struct l_dbus_message *method_source_add(struct l_dbus *dbus,
 		else if (strcmp(key, "Address") == 0)
 			ret = l_dbus_message_iter_get_variant(&value,
 							      "q", &address);
-		else if (strcmp(key, "Size") == 0)
-			ret = l_dbus_message_iter_get_variant(&value,
-							      "q", &size);
 		else if (strcmp(key, "PollingInterval") == 0)
 			ret = l_dbus_message_iter_get_variant(&value,
 							      "q", &interval);
@@ -261,11 +257,10 @@ static struct l_dbus_message *method_source_add(struct l_dbus *dbus,
 	}
 
 	/* FIXME: validate type */
-	if (!name || !type || address == 0 || size == 0)
+	if (!name || !type || address == 0)
 		return dbus_error_invalid_args(msg);
 
-	source = source_create(slave->path, name, type,
-			       address, size, interval);
+	source = source_create(slave->path, name, type, address, interval);
 	if (!source)
 		return dbus_error_invalid_args(msg);
 
@@ -284,8 +279,6 @@ static struct l_dbus_message *method_source_add(struct l_dbus *dbus,
 				 "Name", name);
 	storage_write_key_string(slave->sources_fd, addrstr,
 				 "Type", type);
-	storage_write_key_int(slave->sources_fd, addrstr,
-			      "Size", size);
 	storage_write_key_int(slave->sources_fd, addrstr,
 			      "PollingInterval", interval);
 
