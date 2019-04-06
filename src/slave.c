@@ -64,6 +64,14 @@ static bool path_cmp(const void *a, const void *b)
 	return (strcmp(source_get_path(source), b1) == 0 ? true : false);
 }
 
+static bool address_cmp(const void *a, const void *b)
+{
+	const struct source *source = a;
+	uint16_t address = L_PTR_TO_INT(b);
+
+	return (source_get_address(source) == address ? true : false);
+}
+
 static void timeout_destroy(void *data)
 {
 	struct l_timeout *timeout = data;
@@ -289,6 +297,13 @@ static struct l_dbus_message *method_source_add(struct l_dbus *dbus,
 	/* FIXME: validate type */
 	if (!name || !type || address == 0)
 		return dbus_error_invalid_args(msg);
+
+	source = l_queue_find(slave->source_list,
+			      address_cmp, L_INT_TO_PTR(address));
+	if (source) {
+		l_error("source: address assigned already");
+		return dbus_error_invalid_args(msg);
+	}
 
 	source = source_create(slave->path, name, type, address, interval);
 	if (!source)
