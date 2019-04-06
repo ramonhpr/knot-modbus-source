@@ -129,8 +129,6 @@ static void tcp_disconnected_cb(struct l_io *io, void *user_data)
 
 	l_io_destroy(slave->io);
 	slave->io = NULL;
-
-	slave_unref(slave);
 }
 
 static void polling_to_expired(struct l_timeout *timeout, void *user_data)
@@ -215,7 +213,8 @@ static int enable_slave(struct slave *slave)
 			goto error;
 
 		l_io_set_disconnect_handler(slave->io, tcp_disconnected_cb,
-					    slave_ref(slave), NULL);
+					    slave_ref(slave),
+					    (l_io_destroy_cb_t) slave_unref);
 
 		l_queue_foreach(slave->source_list,
 				polling_start, slave);
@@ -312,6 +311,9 @@ static struct l_dbus_message *method_source_add(struct l_dbus *dbus,
 				 "Type", type);
 	storage_write_key_int(slave->sources_fd, addrstr,
 			      "PollingInterval", interval);
+
+	if (slave->io)
+		polling_start(source, slave);
 
 	return reply;
 }
@@ -527,6 +529,9 @@ void slave_destroy(struct slave *slave)
 
 	if (unlikely(!slave))
 		return;
+
+	if (slave->io)
+		l_io_set_disconnect_handler(slave->io, NULL, NULL, NULL);
 
 	l_dbus_unregister_object(dbus_get_bus(), slave->path);
 	slave_unref(slave);
