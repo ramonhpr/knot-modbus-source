@@ -45,6 +45,7 @@ struct slave {
 	char *hostname;
 	char *port; /* getaddrinfo service */
 	modbus_t *tcp;
+	struct l_io *io;
 	struct l_queue *source_list;
 	struct l_hashmap *to_list;
 	int sources_fd;
@@ -75,6 +76,9 @@ static void slave_free(struct slave *slave)
 	l_queue_destroy(slave->source_list,
 			(l_queue_destroy_func_t) source_destroy);
 	l_hashmap_destroy(slave->to_list, timeout_destroy);
+
+	if (slave->io)
+		l_io_destroy(slave->io);
 	modbus_close(slave->tcp);
 	modbus_free(slave->tcp);
 	storage_close(slave->sources_fd);
@@ -108,6 +112,25 @@ static void slave_unref(struct slave *slave)
 		return;
 
 	slave_free(slave);
+}
+
+static void tcp_disconnected_cb(struct l_io *io, void *user_data)
+{
+	struct slave *slave = user_data;
+
+	l_info("slave %p disconnected", slave);
+
+	l_hashmap_destroy(slave->to_list, timeout_destroy);
+	slave->to_list = NULL;
+
+	modbus_close(slave->tcp);
+	modbus_free(slave->tcp);
+	slave->tcp = NULL;
+
+	l_io_destroy(slave->io);
+	slave->io = NULL;
+
+	slave_unref(slave);
 }
 
 static void polling_to_expired(struct l_timeout *timeout, void *user_data)
@@ -187,11 +210,19 @@ static int enable_slave(struct slave *slave)
 	err = modbus_connect(slave->tcp);
 	l_info("connect() %s:%s (%d)", slave->hostname, slave->port, err);
 	if (err != -1) {
+		slave->io = l_io_new(modbus_get_socket(slave->tcp));
+		if (slave->io == NULL)
+			goto error;
+
+		l_io_set_disconnect_handler(slave->io, tcp_disconnected_cb,
+					    slave_ref(slave), NULL);
+
 		l_queue_foreach(slave->source_list,
 				polling_start, slave);
 		return 0;
 	}
 
+error:
 	/* Releasing connection */
 	err = errno;
 	modbus_close(slave->tcp);
@@ -460,6 +491,7 @@ struct slave *slave_create(const char *key, uint8_t id,
 	slave->hostname = l_strdup(hostname);
 	slave->port = l_strdup(port);
 	slave->tcp = NULL;
+	slave->io = NULL;
 	slave->source_list = l_queue_new();
 	slave->to_list = l_hashmap_string_new();
 
