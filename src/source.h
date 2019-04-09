@@ -36,3 +36,4 @@ uint16_t source_get_interval(const struct source *source);
 bool source_set_value_bool(struct source *source, bool value);
 bool source_set_value_byte(struct source *source, uint8_t value);
 bool source_set_value_u16(struct source *source, uint16_t value);
+bool source_set_value_u32(struct source *source, uint32_t value);
