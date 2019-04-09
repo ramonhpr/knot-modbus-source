@@ -32,8 +32,6 @@
 #include "storage.h"
 #include "manager.h"
 
-#define MANAGER_INTERFACE		"br.org.cesar.modbus.Manager1"
-
 static struct l_queue *slave_list;
 static int slaves_fd;
 
@@ -168,16 +166,16 @@ static void setup_interface(struct l_dbus_interface *interface)
 static void ready_cb(void *user_data)
 {
 	if (!l_dbus_register_interface(dbus_get_bus(),
-				       MANAGER_INTERFACE,
+				       MANAGER_IFACE,
 				       setup_interface,
 				       NULL, false))
-		l_error("dbus: unable to register %s", MANAGER_INTERFACE);
+		l_error("dbus: unable to register %s", MANAGER_IFACE);
 
 	if (!l_dbus_object_add_interface(dbus_get_bus(),
 					 "/",
-					 MANAGER_INTERFACE,
+					 MANAGER_IFACE,
 					 NULL))
-		l_error("dbus: unable to add %s to '/'", MANAGER_INTERFACE);
+		l_error("dbus: unable to add %s to '/'", MANAGER_IFACE);
 
 	if (!l_dbus_object_add_interface(dbus_get_bus(),
 					 "/",

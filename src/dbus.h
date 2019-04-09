@@ -20,6 +20,7 @@
  */
 
 #define KNOT_MODBUS_SERVICE		"br.org.cesar.modbus"
+#define MANAGER_IFACE			KNOT_MODBUS_SERVICE".Manager1"
 #define SLAVE_IFACE			KNOT_MODBUS_SERVICE".Slave1"
 #define SOURCE_IFACE			KNOT_MODBUS_SERVICE".Source1"
 
