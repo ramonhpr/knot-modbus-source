@@ -280,6 +280,7 @@ static struct l_dbus_message *method_source_add(struct l_dbus *dbus,
 	struct l_dbus_message_iter dict;
 	struct l_dbus_message_iter value;
 	char addrstr[7];
+	char signature[2];
 	const char *key = NULL;
 	const char *name = NULL;
 	const char *type = NULL;
@@ -311,8 +312,16 @@ static struct l_dbus_message *method_source_add(struct l_dbus *dbus,
 	}
 
 	/* FIXME: validate type */
-	if (!name || !type || address == 0)
+	if (!name || address == 0 || !type || strlen(type) != 1)
 		return dbus_error_invalid_args(msg);
+
+	/* Restricted to basic D-Bus types: bool, byte, u16, u32, u64 */
+	memset(signature, 0, sizeof(signature));
+	ret = sscanf(type, "%[byqut]1s", signature);
+	if (ret != 1) {
+		l_info("Limited to basic types only!");
+		return dbus_error_invalid_args(msg);
+	}
 
 	source = l_queue_find(slave->source_list,
 			      address_cmp, L_INT_TO_PTR(address));
