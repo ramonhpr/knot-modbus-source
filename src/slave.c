@@ -87,8 +87,10 @@ static void slave_free(struct slave *slave)
 
 	if (slave->io)
 		l_io_destroy(slave->io);
-	modbus_close(slave->tcp);
-	modbus_free(slave->tcp);
+	if (slave->tcp) {
+		modbus_close(slave->tcp);
+		modbus_free(slave->tcp);
+	}
 	storage_close(slave->sources_fd);
 	l_free(slave->key);
 	l_free(slave->hostname);
