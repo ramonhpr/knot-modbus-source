@@ -43,6 +43,7 @@ struct source {
 		uint8_t vu8;
 		uint16_t vu16;
 		uint32_t vu32;
+		uint64_t vu64;
 	} value;
 };
 
@@ -359,6 +360,22 @@ bool source_set_value_u32(struct source *source, uint32_t value)
 		return true;
 
 	source->value.vu32 = value;
+
+	l_dbus_property_changed(dbus_get_bus(), source->path,
+				SOURCE_IFACE, "Value");
+
+	return true;
+}
+
+bool source_set_value_u64(struct source *source, uint64_t value)
+{
+	if (unlikely(!source))
+		return false;
+
+	if (source->value.vu64 == value)
+		return true;
+
+	source->value.vu64 = value;
 
 	l_dbus_property_changed(dbus_get_bus(), source->path,
 				SOURCE_IFACE, "Value");

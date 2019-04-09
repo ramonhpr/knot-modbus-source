@@ -149,6 +149,7 @@ static void polling_to_expired(struct l_timeout *timeout, void *user_data)
 	uint8_t val_u8 = 0;
 	uint16_t val_u16 = 0;
 	uint32_t val_u32 = 0;
+	uint64_t val_u64 = 0;
 	int ret = 0, err;
 
 	l_info("modbus reading source %p addr:(0x%x)", source, u16_addr);
@@ -176,6 +177,13 @@ static void polling_to_expired(struct l_timeout *timeout, void *user_data)
 					    (uint16_t *) &val_u32);
 		if (ret != -1)
 			source_set_value_u32(source, L_BE32_TO_CPU(val_u32));
+		break;
+	case 't':
+		/* Assuming network order */
+		ret = modbus_read_registers(slave->tcp, u16_addr, 4,
+					    (uint16_t *) &val_u64);
+		if (ret != -1)
+			source_set_value_u64(source, L_BE64_TO_CPU(val_u64));
 		break;
 	default:
 		break;
