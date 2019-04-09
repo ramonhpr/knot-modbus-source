@@ -84,7 +84,7 @@ def main(options,args):
         DEFAULT_ADDR = ["google.com:80", "microsoft.com:80","engadget.com:80"]
         i = 1
 
-        for i in range(1,int(args[1])):
+        for i in range(0,int(args[1])):
             idval = dbus.Byte(randint(1,247))
             nameval = dbus.String("test_{}".format(int(idval)))
             addrval = dbus.String(DEFAULT_ADDR[randint(0,2)])
