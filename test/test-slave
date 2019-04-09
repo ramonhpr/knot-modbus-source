@@ -68,6 +68,8 @@ def main(options,args):
         slaves = []
         for aux in iface.GetManagedObjects():
                 var = aux.split("/")
+                if var[1] == '':
+                 continue
                 slaves.append(var[1])
         slaves = list(set(slaves))
 
