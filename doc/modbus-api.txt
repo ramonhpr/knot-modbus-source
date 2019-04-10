@@ -11,8 +11,12 @@ Object path 	/
 Methods 	object AddSlave(dict host)
 
 		Adds a new slave (PLC) to monitor for variable changes.
-		Mandatory dict entries: Name(string), Address(string
-		containing 'hostname:port' format), and Id(uint16).
+		Mandatory dict entries:
+			Name: string representing description of the
+				peer (PLC) to be tracked.
+			Address: string containing 'hostname:port'
+				format. IPv4 and IPv6 are supported.
+			Id: byte, slave id defined by modbus protocol.
 
 		Returns: br.org.cesar.knot.nrf.Error.InvalidArguments
 
@@ -35,17 +39,25 @@ modbus TCP protocol.
 
 Methods 	object AddSource(dict host)
 
-		Adds a new slave (PLC) to monitor for variable changes.
-		Mandatory dict entries: Name(string), Address(string
-		containing 'hostname:port' format), and Id(uint16).
+		Adds a new variable to monitor for changes.
+		Mandatory dict entries:
+			Name: string representing description of the
+				variable tracked.
+			Address: uint16 address to be read from the
+				slave (PLC).
+			Type: string following D-Bus types syntax.
+				At the moment it is restricted to
+				basic types only.
+		Optional entries:
+			PollingInterval: read frequency in miliseconds.
 
 		Returns: br.org.cesar.knot.nrf.Error.InvalidArguments
 
 
 		void RemoveSource(object slave)
 
-		This method removes a slave, purging persistent data
-		and sources related to the slave.
+		This method removes a source, purging persistent data
+		and sources related to the source (modbus variable).
 
 		Returns: br.org.cesar.knot.nrf.Error.InvalidArguments
 
@@ -54,7 +66,7 @@ Properties
 		string Name [read/write]
 
 		Local/alias name assigned to the slave. Textual local
-		information used to distinguish Modbus slaves.
+		information used to distinguish Modbus slaves (PLC).
 
 
 		byte Id [readonly]
@@ -65,7 +77,7 @@ Properties
 		string Address [readonly]
 
 		URL/address of the host that exposes modbus variables.
-		Format is 'hostname:port'
+		Format is 'hostname:port' or IPv4/IPv6 address.
 
 
 		boolean Enable [readwrite]
@@ -79,8 +91,8 @@ Source hierarchy
 Interface 	br.org.cesar.modbus.Source1
 Object path 	[variable prefix]/slave_xxxxxxxxxxxxxxxx/source_xxxx
 
-Slaves objects represent a variable that should be read on regular
-intervals usings modbus TCP protocol.
+Source objects representing a variable that should be read on regular
+intervals using modbus TCP protocol.
 
 Methods 	None
 
