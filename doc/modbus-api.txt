@@ -1,0 +1,115 @@
+modbus D-Bus API description
+**************************
+
+Service 	br.org.cesar.modbus
+
+Manager hierarchy
+=================
+Interface 	br.org.cesar.modbus.Manager1
+Object path 	/
+
+Methods 	object AddSlave(dict host)
+
+		Adds a new slave (PLC) to monitor for variable changes.
+		Mandatory dict entries: Name(string), Address(string
+		containing 'hostname:port' format), and Id(uint16).
+
+		Returns: br.org.cesar.knot.nrf.Error.InvalidArguments
+
+
+		void RemoveSlave(object slave)
+
+		This method removes a slave, purging persistent data
+		and sources related to the slave.
+
+		Returns: br.org.cesar.knot.nrf.Error.InvalidArguments
+
+
+Slave hierarchy
+================
+Interface 	br.org.cesar.modbus.Slave1
+Object path 	[variable prefix]/slave_xxxxxxxxxxxxxxxx
+
+Slaves objects represent a peer (PLC) that exposes variables through
+modbus TCP protocol.
+
+Methods 	object AddSource(dict host)
+
+		Adds a new slave (PLC) to monitor for variable changes.
+		Mandatory dict entries: Name(string), Address(string
+		containing 'hostname:port' format), and Id(uint16).
+
+		Returns: br.org.cesar.knot.nrf.Error.InvalidArguments
+
+
+		void RemoveSource(object slave)
+
+		This method removes a slave, purging persistent data
+		and sources related to the slave.
+
+		Returns: br.org.cesar.knot.nrf.Error.InvalidArguments
+
+
+Properties
+		string Name [read/write]
+
+		Local/alias name assigned to the slave. Textual local
+		information used to distinguish Modbus slaves.
+
+
+		byte Id [readonly]
+
+		Modbus slave id field.
+
+
+		string Address [readonly]
+
+		URL/address of the host that exposes modbus variables.
+		Format is 'hostname:port'
+
+
+		boolean Enable [readwrite]
+
+		Enable/Disable polling of variables on regular intervals
+		based on 'PollingInterval' property.
+
+
+Source hierarchy
+================
+Interface 	br.org.cesar.modbus.Source1
+Object path 	[variable prefix]/slave_xxxxxxxxxxxxxxxx/source_xxxx
+
+Slaves objects represent a variable that should be read on regular
+intervals usings modbus TCP protocol.
+
+Methods 	None
+
+
+Properties
+		string Name [read/write]
+
+		Local/alias name assigned to the source object. Textual
+		local information used to distinguish Modbus sources.
+
+
+		string Signature [readonly]
+
+		String that defines the format (data type) of the
+		Source object (variable). 'Signature' follows D-Bus
+		basic type syntax.
+
+
+		Variant Value [readonly]
+
+		Value exposed by the Source object. 'Signature' defines
+		the variable basic type.
+
+		uint16 Address[readonly]
+
+		Address of the variable to be read from the peer (PLC).
+
+
+		uint16 PollingInterval[readonly]
+
+		Define in miliseconds how frequently a new value
+		should be read from the exposed variable.
