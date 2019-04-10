@@ -434,6 +434,22 @@ static struct l_dbus_message *property_set_name(struct l_dbus *dbus,
 	return NULL;
 }
 
+static bool property_get_address(struct l_dbus *dbus,
+				  struct l_dbus_message *msg,
+				  struct l_dbus_message_builder *builder,
+				  void *user_data)
+{
+	struct slave *slave = user_data;
+	char *address = l_strdup_printf("%s:%s", slave->hostname, slave->port);
+
+	/* PLC/Peer IP address */
+	l_dbus_message_builder_append_basic(builder, 's', &address);
+
+	l_free(address);
+
+	return true;
+}
+
 static bool property_get_enable(struct l_dbus *dbus,
 				  struct l_dbus_message *msg,
 				  struct l_dbus_message_builder *builder,
@@ -497,6 +513,12 @@ static void setup_interface(struct l_dbus_interface *interface)
 				       property_get_name,
 				       property_set_name))
 		l_error("Can't add 'Name' property");
+
+	/* Per/PLC IP address including port. Format: 'hostname:port' */
+	if (!l_dbus_interface_property(interface, "Address", 0, "s",
+				       property_get_address,
+				       NULL))
+		l_error("Can't add 'Address' property");
 
 	/* Enable/Disable slave polling */
 	if (!l_dbus_interface_property(interface, "Enable", 0, "b",
