@@ -74,7 +74,7 @@ Properties
 		Modbus slave id field.
 
 
-		string Address [readonly]
+		string IpAddress [readonly]
 
 		URL/address of the host that exposes modbus variables.
 		Format is 'hostname:port' or IPv4/IPv6 address.
