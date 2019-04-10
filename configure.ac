@@ -33,9 +33,8 @@ PKG_CHECK_MODULES(ELL, ell,
 AC_SUBST(ELL_CFLAGS)
 AC_SUBST(ELL_LIBS)
 
-PKG_CHECK_MODULES(MODBUS, libmodbus,
-  [AC_DEFINE([HAVE_MODBUS],[1],[Use MODBUS])],
-  [AC_MSG_ERROR("libmodbus missing")])
+PKG_CHECK_MODULES(MODBUS, libmodbus >= 3.1.4, dummy=yes,
+  AC_MSG_ERROR("required libmodbus >= 3.1.4"))
 AC_SUBST(MODBUS_CFLAGS)
 AC_SUBST(MODBUS_LIBS)
 
