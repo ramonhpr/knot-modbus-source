@@ -300,7 +300,8 @@ static struct l_dbus_message *method_source_add(struct l_dbus *dbus,
 		else if (strcmp(key, "Type") == 0)
 			ret = l_dbus_message_iter_get_variant(&value,
 							      "s", &type);
-		else if (strcmp(key, "IpAddress") == 0)
+		/* Memory address */
+		else if (strcmp(key, "Address") == 0)
 			ret = l_dbus_message_iter_get_variant(&value,
 							      "q", &address);
 		else if (strcmp(key, "PollingInterval") == 0)
@@ -518,7 +519,7 @@ static void setup_interface(struct l_dbus_interface *interface)
 	if (!l_dbus_interface_property(interface, "IpAddress", 0, "s",
 				       property_get_ipaddress,
 				       NULL))
-		l_error("Can't add 'Address' property");
+		l_error("Can't add 'IpAddress' property");
 
 	/* Enable/Disable slave polling */
 	if (!l_dbus_interface_property(interface, "Enable", 0, "b",
