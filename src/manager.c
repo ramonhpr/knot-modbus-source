@@ -165,6 +165,8 @@ static void setup_interface(struct l_dbus_interface *interface)
 
 static void ready_cb(void *user_data)
 {
+	const char *filename = STORAGEDIR "/slaves.conf";
+
 	if (!l_dbus_register_interface(dbus_get_bus(),
 				       MANAGER_IFACE,
 				       setup_interface,
@@ -187,7 +189,7 @@ static void ready_cb(void *user_data)
 	slave_start();
 
 	/* Slave settings file */
-	slaves_fd = storage_open(user_data);
+	slaves_fd = storage_open(filename);
 	if (slaves_fd < 0)
 		return;
 
@@ -195,13 +197,13 @@ static void ready_cb(void *user_data)
 	storage_foreach_slave(slaves_fd, create_from_storage, NULL);
 }
 
-int manager_start(const char *slaves_file)
+int manager_start(const char *config_file)
 {
 	l_info("Starting manager ...");
 
 	slave_list = l_queue_new();
 
-	return dbus_start(ready_cb, (void *) slaves_file);
+	return dbus_start(ready_cb, NULL);
 }
 
 void manager_stop(void)
