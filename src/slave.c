@@ -42,6 +42,7 @@ struct slave {
 	bool enable;
 	char *name;
 	char *path;
+	char *ipaddress;
 	char *hostname;
 	char *port; /* getaddrinfo service */
 	modbus_t *tcp;
@@ -93,6 +94,7 @@ static void slave_free(struct slave *slave)
 	}
 	storage_close(slave->sources_fd);
 	l_free(slave->key);
+	l_free(slave->ipaddress);
 	l_free(slave->hostname);
 	l_free(slave->port);
 	l_free(slave->name);
@@ -441,12 +443,9 @@ static bool property_get_ipaddress(struct l_dbus *dbus,
 				  void *user_data)
 {
 	struct slave *slave = user_data;
-	char *address = l_strdup_printf("%s:%s", slave->hostname, slave->port);
 
 	/* PLC/Peer IP address */
-	l_dbus_message_builder_append_basic(builder, 's', &address);
-
-	l_free(address);
+	l_dbus_message_builder_append_basic(builder, 's', &slave->ipaddress);
 
 	return true;
 }
