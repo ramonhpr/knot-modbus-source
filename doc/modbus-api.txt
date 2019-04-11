@@ -47,7 +47,9 @@ Methods 	object AddSource(dict host)
 				slave (PLC).
 			Type: string following D-Bus types syntax.
 				At the moment it is restricted to
-				basic types only.
+				basic types only. Supported types:
+				bool(b), byte(y), u16(q), u32(u),
+				u64(t).
 		Optional entries:
 			PollingInterval: read frequency in miliseconds.
 
