@@ -39,4 +39,20 @@ PKG_CHECK_MODULES(MODBUS, libmodbus,
 AC_SUBST(MODBUS_CFLAGS)
 AC_SUBST(MODBUS_LIBS)
 
+if (test "${prefix}" = "NONE"); then
+        if (test "$localstatedir" = '${prefix}/var'); then
+                AC_SUBST([localstatedir], ['/var'])
+        fi
+        prefix="${ac_default_prefix}"
+fi
+
+if (test "$localstatedir" = '${prefix}/var'); then
+        storagedir="${prefix}/var/lib/modbus"
+else
+        storagedir="${localstatedir}/lib/modbus"
+fi
+
+AC_DEFINE_UNQUOTED(STORAGEDIR, "${storagedir}",
+                        [Directory for storing settings])
+
 AC_OUTPUT(Makefile)
