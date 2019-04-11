@@ -561,8 +561,8 @@ struct slave *slave_create(const char *key, uint8_t id,
 	slave->source_list = l_queue_new();
 	slave->to_list = l_hashmap_string_new();
 
-	/* FIXME: missing absolute path & create dirs */
-	filename = l_strdup_printf("%s/sources.conf", slave->key);
+	filename = l_strdup_printf("%s/%s/sources.conf",
+				   STORAGEDIR, slave->key);
 	slave->sources_fd = storage_open(filename);
 	l_free(filename);
 
