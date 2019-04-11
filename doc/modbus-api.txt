@@ -52,6 +52,7 @@ Methods 	object AddSource(dict host)
 				u64(t).
 		Optional entries:
 			PollingInterval: read frequency in miliseconds.
+				default is 1000 ms.
 
 		Returns: br.org.cesar.knot.nrf.Error.InvalidArguments
 
