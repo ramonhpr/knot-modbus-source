@@ -190,8 +190,10 @@ static void ready_cb(void *user_data)
 
 	/* Slave settings file */
 	slaves_fd = storage_open(filename);
-	if (slaves_fd < 0)
+	if (slaves_fd < 0) {
+		l_error("Can not open/create slave files!");
 		return;
+	}
 
 	/* Registering all slaves */
 	storage_foreach_slave(slaves_fd, create_from_storage, NULL);

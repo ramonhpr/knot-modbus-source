@@ -26,11 +26,58 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
+#include <limits.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+
 #include <ell/ell.h>
 
 #include "storage.h"
 
 static struct l_hashmap *storage_list = NULL;
+
+static int make_dirs(const char *filename, const mode_t mode)
+{
+        char dir[PATH_MAX + 1], *previous, *next;
+        struct stat st;
+        int err;
+
+	memset(&st, 0, sizeof(st));
+
+        err = stat(filename, &st);
+        if ((err == 0) && S_ISREG(st.st_mode))
+                return 0;
+
+        memset(dir, 0, PATH_MAX + 1);
+        dir[0] ='/';
+
+	previous = strchr(filename, '/');
+
+	while (previous) {
+		next = strchr(previous + 1, '/');
+		if (!next)
+			break;
+
+		if (next - previous == 1) {
+			previous = next;
+			continue;
+		}
+
+		strncat(dir, previous + 1, next - previous);
+		l_info("mkdir: %s", dir);
+
+		if (mkdir(dir, mode) == -1) {
+			err = errno;
+
+			if (err != EEXIST)
+				return err;
+		}
+
+		previous = next;
+	}
+
+	return 0;
+}
 
 static int save_settings(int fd, struct l_settings *settings)
 {
@@ -57,7 +104,11 @@ failure:
 int storage_open(const char *pathname)
 {
 	struct l_settings *settings;
-	int fd;
+	int fd, err;
+
+	err = make_dirs(pathname, S_IRUSR | S_IWUSR | S_IXUSR);
+	if (err < 0)
+		return err;
 
 	fd = open(pathname, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
 	if (fd < 0)
