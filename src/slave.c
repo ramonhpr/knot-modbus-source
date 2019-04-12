@@ -23,11 +23,12 @@
 #include <config.h>
 #endif
 
+#include <stdio.h>
 #include <errno.h>
+#include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include <stdio.h>
 #include <ell/ell.h>
 
 #include <modbus.h>
@@ -622,8 +623,11 @@ struct slave *slave_create(const char *key, uint8_t id,
 	return slave_ref(slave);
 }
 
-void slave_destroy(struct slave *slave)
+void slave_destroy(struct slave *slave, bool rm)
 {
+	char *filename;
+	int err;
+
 	l_info("slave_destroy(%p)", slave);
 
 	if (unlikely(!slave))
@@ -633,6 +637,30 @@ void slave_destroy(struct slave *slave)
 		l_io_set_disconnect_handler(slave->io, NULL, NULL, NULL);
 
 	l_dbus_unregister_object(dbus_get_bus(), slave->path);
+
+	if (!rm)
+		goto done;
+
+	/* Remove stored data: sources.conf */
+	filename = l_strdup_printf("%s/%s/sources.conf",
+				   STORAGEDIR, slave->key);
+	if (unlink(filename) == -1) {
+		err = errno;
+		l_error("unlink(%s): %s(%d)", filename, strerror(err), err);
+	}
+
+	l_free(filename);
+
+	/* Remove stored data: directory */
+	filename = l_strdup_printf("%s/%s", STORAGEDIR, slave->key);
+	if (rmdir(filename) == -1) {
+		err = errno;
+		l_error("unlink(%s): %s(%d)", filename, strerror(err), err);
+	}
+
+	l_free(filename);
+
+done:
 	slave_unref(slave);
 }
 

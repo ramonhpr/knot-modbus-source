@@ -25,6 +25,6 @@ void slave_stop(void);
 struct slave;
 struct slave *slave_create(const char *key, uint8_t id,
 			   const char *name, const char *address);
-void slave_destroy(struct slave *slave);
+void slave_destroy(struct slave *slave, bool rm);
 const char *slave_get_path(const struct slave *slave);
 const char *slave_get_key(const struct slave *slave);

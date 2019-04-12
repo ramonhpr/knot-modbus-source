@@ -35,6 +35,14 @@
 static struct l_queue *slave_list;
 static int slaves_fd;
 
+static void entry_destroy(void *data)
+{
+	struct slave *slave = data;
+
+	/* false: don't remove from storage */
+	slave_destroy(slave, false);
+}
+
 static bool path_cmp(const void *a, const void *b)
 {
 	const struct slave *slave = a;
@@ -147,7 +155,8 @@ static struct l_dbus_message *method_slave_remove(struct l_dbus *dbus,
 	if (storage_remove_group(slaves_fd, slave_get_key(slave)) < 0)
 		l_info("storage(): Can't delete slave!");
 
-	slave_destroy(slave);
+	/* true: remove storage */
+	slave_destroy(slave, true);
 
 	return l_dbus_message_new_method_return(msg);
 }
@@ -211,7 +220,7 @@ int manager_start(const char *config_file)
 void manager_stop(void)
 {
 	l_info("Stopping manager ...");
-	l_queue_destroy(slave_list, (l_queue_destroy_func_t) slave_destroy);
+	l_queue_destroy(slave_list, entry_destroy);
 	slave_stop();
 	dbus_stop();
 	storage_close(slaves_fd);
