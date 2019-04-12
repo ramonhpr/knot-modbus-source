@@ -24,10 +24,10 @@ autom4te.cache
 
 .vscode
 
+src/modbusd
+
 cscope.in.out
 cscope.out
 cscope.po.out
-
-src/modbusd
 
 INSTALL
