@@ -24,9 +24,18 @@ typedef void (storage_foreach_slave_t)(const char *key,
 				       const char *name,
 				       const char *address,
 				       void *user_data);
+typedef void (storage_foreach_source_t)(const char *address,
+				       const char *name,
+				       const char *type,
+				       int interval,
+				       void *user_data);
+
 void storage_foreach_slave(int fd,
 			   storage_foreach_slave_t func,
 			   void *user_data);
+void storage_foreach_source(int fd,
+			    storage_foreach_source_t func,
+			    void *user_data);
 
 int storage_open(const char *pathname);
 int storage_close(int fd);

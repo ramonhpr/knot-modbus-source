@@ -175,6 +175,41 @@ void storage_foreach_slave(int fd, storage_foreach_slave_t func,
 	l_strfreev(groups);
 }
 
+void storage_foreach_source(int fd, storage_foreach_source_t func,
+						void *user_data)
+{
+	struct l_settings *settings;
+	char **groups;
+	char *name;
+	char *type;
+	int interval = 1000;
+	int i;
+
+	settings = l_hashmap_lookup(storage_list, L_INT_TO_PTR(fd));
+	if (!settings)
+		return;
+
+	groups = l_settings_get_groups(settings);
+
+	for (i = 0; groups[i] != NULL; i++) {
+		l_settings_get_int(settings, groups[i],
+				       "PollingInterval", &interval);
+
+		name = l_settings_get_string(settings, groups[i], "Name");
+		if (!name)
+			continue;
+
+		type = l_settings_get_string(settings, groups[i], "Type");
+		if (type)
+			func(groups[i], name, type, interval, user_data);
+
+		l_free(name);
+		l_free(type);
+	}
+
+	l_strfreev(groups);
+}
+
 int storage_write_key_string(int fd, const char *group,
 			     const char *key, const char *value)
 {

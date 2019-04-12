@@ -24,6 +24,9 @@
 #endif
 
 #include <errno.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+
 #include <stdio.h>
 #include <ell/ell.h>
 
@@ -124,6 +127,26 @@ static void slave_unref(struct slave *slave)
 		return;
 
 	slave_free(slave);
+}
+
+static void create_from_storage(const char *address,
+				const char *name,
+				const char *type,
+				int interval,
+				void *user_data)
+{
+	struct slave *slave = user_data;
+	struct source *source;
+	unsigned int uaddr;
+
+	if (sscanf(address, "0x%04x", &uaddr) != 1)
+		return;
+
+	source = source_create(slave->path, name, type, uaddr, interval);
+	if (!source)
+		return;
+
+	l_queue_push_head(slave->source_list, source);
 }
 
 static void tcp_disconnected_cb(struct l_io *io, void *user_data)
@@ -532,10 +555,12 @@ struct slave *slave_create(const char *key, uint8_t id,
 			   const char *name, const char *address)
 {
 	struct slave *slave;
+	struct stat st;
 	char *dpath;
 	char *filename;
 	char hostname[128];
 	char port[8];
+	int st_ret;
 
 	/* "host:port or /dev/ttyACM0, /dev/ttyUSB0, ..."*/
 
@@ -564,6 +589,10 @@ struct slave *slave_create(const char *key, uint8_t id,
 
 	filename = l_strdup_printf("%s/%s/sources.conf",
 				   STORAGEDIR, slave->key);
+
+	memset(&st, 0, sizeof(st));
+	st_ret = stat(filename, &st);
+
 	slave->sources_fd = storage_open(filename);
 	l_free(filename);
 
@@ -584,6 +613,11 @@ struct slave *slave_create(const char *key, uint8_t id,
 
 	l_info("Slave(%p): (%s) hostname: (%s) port: (%s)",
 					slave, dpath, hostname, port);
+
+	/* Slave created from storage: create sources (child) */
+	if (st_ret == 0)
+		storage_foreach_source(slave->sources_fd,
+				       create_from_storage, slave);
 
 	return slave_ref(slave);
 }
