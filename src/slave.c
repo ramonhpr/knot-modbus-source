@@ -445,7 +445,7 @@ static bool property_get_ipaddress(struct l_dbus *dbus,
 	struct slave *slave = user_data;
 
 	/* PLC/Peer IP address */
-	l_dbus_message_builder_append_basic(builder, 's', &slave->ipaddress);
+	l_dbus_message_builder_append_basic(builder, 's', slave->ipaddress);
 
 	return true;
 }
@@ -554,6 +554,7 @@ struct slave *slave_create(const char *key, uint8_t id,
 	slave->id = id;
 	slave->enable = false;
 	slave->name = l_strdup(name);
+	slave->ipaddress = l_strdup(address);
 	slave->hostname = l_strdup(hostname);
 	slave->port = l_strdup(port);
 	slave->tcp = NULL;
