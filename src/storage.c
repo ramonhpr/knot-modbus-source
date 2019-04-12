@@ -163,7 +163,8 @@ void storage_foreach_slave(int fd, storage_foreach_slave_t func,
 		if (!name)
 			continue;
 
-		address = l_settings_get_string(settings, groups[i], "Address");
+		address = l_settings_get_string(settings, groups[i],
+						"IpAddress");
 		if (address)
 			func(groups[i], id, name, address, user_data);
 
