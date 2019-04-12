@@ -165,6 +165,9 @@ static void tcp_disconnected_cb(struct l_io *io, void *user_data)
 
 	l_io_destroy(slave->io);
 	slave->io = NULL;
+
+	l_dbus_property_changed(dbus_get_bus(), slave->path,
+				SLAVE_IFACE, "Enable");
 }
 
 static void polling_to_expired(struct l_timeout *timeout, void *user_data)
