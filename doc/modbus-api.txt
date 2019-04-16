@@ -83,10 +83,9 @@ Properties
 		Format is 'hostname:port' or IPv4/IPv6 address.
 
 
-		boolean Enable [readwrite]
+		boolean Online [readonly]
 
-		Enable/Disable polling of variables on regular intervals
-		based on 'PollingInterval' property.
+		Report connection status between host and slave (PLC).
 
 
 Source hierarchy
