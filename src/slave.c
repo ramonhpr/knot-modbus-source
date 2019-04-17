@@ -479,6 +479,8 @@ static struct l_dbus_message *property_set_name(struct l_dbus *dbus,
 
 	complete(dbus, msg, NULL);
 
+	storage_write_key_string(slaves_fd, slave->key, "Name", name);
+
 	return NULL;
 }
 
