@@ -43,7 +43,6 @@ struct slave {
 	int refs;
 	char *key;	/* Local random id */
 	uint8_t id;	/* modbus slave id */
-	bool enable;
 	char *name;
 	char *path;
 	char *ipaddress;
@@ -185,7 +184,7 @@ static void tcp_disconnected_cb(struct l_io *io, void *user_data)
 	slave->io = NULL;
 
 	l_dbus_property_changed(dbus_get_bus(), slave->path,
-				SLAVE_IFACE, "Enable");
+				SLAVE_IFACE, "Online");
 }
 
 static void polling_to_expired(struct l_timeout *timeout, void *user_data)
@@ -497,17 +496,17 @@ static bool property_get_ipaddress(struct l_dbus *dbus,
 	return true;
 }
 
-static bool property_get_enable(struct l_dbus *dbus,
+static bool property_get_online(struct l_dbus *dbus,
 				  struct l_dbus_message *msg,
 				  struct l_dbus_message_builder *builder,
 				  void *user_data)
 {
 	struct slave *slave = user_data;
-	bool enable;
+	bool online;
 
-	enable = (slave->tcp ? true : false);
+	online = (slave->tcp ? true : false);
 
-	l_dbus_message_builder_append_basic(builder, 'b', &enable);
+	l_dbus_message_builder_append_basic(builder, 'b', &online);
 
 	return true;
 }
@@ -567,11 +566,11 @@ static void setup_interface(struct l_dbus_interface *interface)
 				       NULL))
 		l_error("Can't add 'IpAddress' property");
 
-	/* Enable/Disable slave polling */
-	if (!l_dbus_interface_property(interface, "Enable", 0, "b",
-				       property_get_enable,
+	/* Online: connected to slave */
+	if (!l_dbus_interface_property(interface, "Online", 0, "b",
+				       property_get_online,
 				       property_set_enable))
-		l_error("Can't add 'Enable' property");
+		l_error("Can't add 'Online' property");
 
 }
 
@@ -601,7 +600,6 @@ struct slave *slave_create(const char *key, uint8_t id,
 	slave->refs = 0;
 	slave->key = l_strdup(key);
 	slave->id = id;
-	slave->enable = false;
 	slave->name = l_strdup(name);
 	slave->ipaddress = l_strdup(address);
 	slave->hostname = l_strdup(hostname);
