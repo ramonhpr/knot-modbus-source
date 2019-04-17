@@ -33,7 +33,6 @@
 #include "manager.h"
 
 static struct l_queue *slave_list;
-static int slaves_fd;
 
 static void entry_destroy(void *data)
 {
@@ -49,21 +48,6 @@ static bool path_cmp(const void *a, const void *b)
 	const char *b1 = b;
 
 	return (strcmp(slave_get_path(slave), b1) == 0 ? true : false);
-}
-
-static void create_from_storage(const char *key,
-				int slave_id,
-				const char *name,
-				const char *address,
-				void *user_data)
-{
-	struct slave *slave;
-
-	slave = slave_create(key, slave_id, name, address);
-	if (!slave)
-		return;
-
-	l_queue_push_head(slave_list, slave);
 }
 
 static struct l_dbus_message *method_slave_add(struct l_dbus *dbus,
@@ -127,11 +111,6 @@ static struct l_dbus_message *method_slave_add(struct l_dbus *dbus,
 	l_dbus_message_builder_finalize(builder);
 	l_dbus_message_builder_destroy(builder);
 
-	storage_write_key_int(slaves_fd, randomkeystr, "Id", slave_id);
-	storage_write_key_string(slaves_fd, randomkeystr, "Name",
-				 name ? : address);
-	storage_write_key_string(slaves_fd, randomkeystr, "IpAddress", address);
-
 	return reply;
 }
 
@@ -152,9 +131,6 @@ static struct l_dbus_message *method_slave_remove(struct l_dbus *dbus,
 		return dbus_error_invalid_args(msg);
 	}
 
-	if (storage_remove_group(slaves_fd, slave_get_key(slave)) < 0)
-		l_info("storage(): Can't delete slave!");
-
 	/* true: remove storage */
 	slave_destroy(slave, true);
 
@@ -174,8 +150,6 @@ static void setup_interface(struct l_dbus_interface *interface)
 
 static void ready_cb(void *user_data)
 {
-	const char *filename = STORAGEDIR "/slaves.conf";
-
 	if (!l_dbus_register_interface(dbus_get_bus(),
 				       MANAGER_IFACE,
 				       setup_interface,
@@ -195,24 +169,13 @@ static void ready_cb(void *user_data)
 		l_error("dbus: unable to add %s to '/'",
 			L_DBUS_INTERFACE_PROPERTIES);
 
-	slave_start();
-
-	/* Slave settings file */
-	slaves_fd = storage_open(filename);
-	if (slaves_fd < 0) {
-		l_error("Can not open/create slave files!");
-		return;
-	}
-
-	/* Registering all slaves */
-	storage_foreach_slave(slaves_fd, create_from_storage, NULL);
+	/* Returns list of created slaves (from storage) */
+	slave_list = slave_start();
 }
 
 int manager_start(const char *config_file)
 {
 	l_info("Starting manager ...");
-
-	slave_list = l_queue_new();
 
 	return dbus_start(ready_cb, NULL);
 }
@@ -223,5 +186,4 @@ void manager_stop(void)
 	l_queue_destroy(slave_list, entry_destroy);
 	slave_stop();
 	dbus_stop();
-	storage_close(slaves_fd);
 }

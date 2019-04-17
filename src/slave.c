@@ -61,6 +61,8 @@ struct bond {
 	struct source *source;
 };
 
+static int slaves_fd;
+
 static bool path_cmp(const void *a, const void *b)
 {
 	const struct source *source = a;
@@ -130,7 +132,23 @@ static void slave_unref(struct slave *slave)
 	slave_free(slave);
 }
 
-static void create_from_storage(const char *address,
+static void create_slave_from_storage(const char *key,
+				int slave_id,
+				const char *name,
+				const char *address,
+				void *user_data)
+{
+	struct l_queue *list = user_data;
+	struct slave *slave;
+
+	slave = slave_create(key, slave_id, name, address);
+	if (!slave)
+		return;
+
+	l_queue_push_head(list, slave);
+}
+
+static void create_source_from_storage(const char *address,
 				const char *name,
 				const char *type,
 				int interval,
@@ -618,10 +636,18 @@ struct slave *slave_create(const char *key, uint8_t id,
 	l_info("Slave(%p): (%s) hostname: (%s) port: (%s)",
 					slave, dpath, hostname, port);
 
-	/* Slave created from storage: create sources (child) */
-	if (st_ret == 0)
+	if (st_ret == 0) {
+		/* Slave created from storage */
 		storage_foreach_source(slave->sources_fd,
-				       create_from_storage, slave);
+				       create_source_from_storage, slave);
+	} else {
+		/* New slave */
+		storage_write_key_int(slaves_fd, key, "Id", id);
+		storage_write_key_string(slaves_fd, key,
+					 "Name", name ? : address);
+		storage_write_key_string(slaves_fd, key,
+					 "IpAddress", address);
+	}
 
 	return slave_ref(slave);
 }
@@ -663,6 +689,10 @@ void slave_destroy(struct slave *slave, bool rm)
 
 	l_free(filename);
 
+	/* Remove group from slaves.conf */
+	if (storage_remove_group(slaves_fd, slave->key) < 0)
+		l_info("storage(): Can't delete slave!");
+
 done:
 	slave_unref(slave);
 }
@@ -675,17 +705,19 @@ const char *slave_get_path(const struct slave *slave)
 	return slave->path;
 }
 
-const char *slave_get_key(const struct slave *slave)
+struct l_queue *slave_start(void)
 {
-	if (unlikely(!slave))
-		return NULL;
+	const char *filename = STORAGEDIR "/slaves.conf";
+	struct l_queue *list;
 
-	return slave->key;
-}
-
-int slave_start(void)
-{
 	l_info("Starting slave ...");
+
+	/* Slave settings file */
+	slaves_fd = storage_open(filename);
+	if (slaves_fd < 0) {
+		l_error("Can not open/create slave files!");
+		return NULL;
+	}
 
 	if (!l_dbus_register_interface(dbus_get_bus(),
 				       SLAVE_IFACE,
@@ -695,12 +727,19 @@ int slave_start(void)
 
 	source_start();
 
-	return 0;
+	list = l_queue_new();
+	storage_foreach_slave(slaves_fd, create_slave_from_storage, list);
+
+	return list;
 }
 
 void slave_stop(void)
 {
+
+	storage_close(slaves_fd);
+
 	source_stop();
+
 	l_dbus_unregister_interface(dbus_get_bus(),
 				    SLAVE_IFACE);
 }
