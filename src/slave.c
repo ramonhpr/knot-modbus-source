@@ -53,6 +53,7 @@ struct slave {
 	struct l_queue *source_list;
 	struct l_hashmap *to_list;
 	int sources_fd;
+	struct l_timeout *poll_to;
 };
 
 struct bond {
@@ -97,6 +98,10 @@ static void slave_free(struct slave *slave)
 		modbus_close(slave->tcp);
 		modbus_free(slave->tcp);
 	}
+
+	if (slave->poll_to)
+		l_timeout_remove(slave->poll_to);
+
 	storage_close(slave->sources_fd);
 	l_free(slave->key);
 	l_free(slave->ipaddress);
@@ -266,13 +271,14 @@ static void polling_start(void *data, void *user_data)
 	       source_get_interval(source));
 }
 
-static int enable_slave(struct slave *slave)
+static void enable_slave(struct l_timeout *timeout, void *user_data)
 {
+	struct slave *slave = user_data;
 	int err;
 
 	/* Already connected ? */
 	if (slave->tcp)
-		return -EALREADY;
+		return;
 
 	slave->tcp = modbus_new_tcp_pi(slave->hostname, slave->port);
 	modbus_set_slave(slave->tcp, slave->id);
@@ -290,7 +296,11 @@ static int enable_slave(struct slave *slave)
 
 		l_queue_foreach(slave->source_list,
 				polling_start, slave);
-		return 0;
+
+		l_dbus_property_changed(dbus_get_bus(), slave->path,
+					SLAVE_IFACE, "Online");
+
+		return;
 	}
 
 error:
@@ -300,21 +310,8 @@ error:
 	modbus_free(slave->tcp);
 	slave->tcp = NULL;
 
-	return -err;
-}
-
-static int disable_slave(struct slave *slave)
-{
-	/* Already closed? */
-	if (slave->tcp == NULL)
-		return -EALREADY;
-
-	/* Releasing connection */
-	modbus_close(slave->tcp);
-	modbus_free(slave->tcp);
-	slave->tcp = NULL;
-
-	return 0;
+	/* Try again in 5 seconds */
+	l_timeout_modify(timeout, 5);
 }
 
 static struct l_dbus_message *method_source_add(struct l_dbus *dbus,
@@ -511,33 +508,6 @@ static bool property_get_online(struct l_dbus *dbus,
 	return true;
 }
 
-static struct l_dbus_message *property_set_enable(struct l_dbus *dbus,
-					 struct l_dbus_message *msg,
-					 struct l_dbus_message_iter *new_value,
-					 l_dbus_property_complete_cb_t complete,
-					 void *user_data)
-{
-	struct slave *slave = user_data;
-	bool enable;
-	int ret;
-
-	if (!l_dbus_message_iter_get_variant(new_value, "b", &enable))
-		return dbus_error_invalid_args(msg);
-
-	if (enable == false)
-		/* Shutdown modbus tcp */
-		ret = disable_slave(slave);
-	else
-		/* Connect & enable polling */
-		ret = enable_slave(slave);
-
-	if (ret < 0 && ret != -EALREADY)
-		return dbus_error_errno(msg, "Connect", -ret);
-
-	complete(dbus, msg, NULL);
-	return NULL;
-}
-
 static void setup_interface(struct l_dbus_interface *interface)
 {
 
@@ -569,7 +539,7 @@ static void setup_interface(struct l_dbus_interface *interface)
 	/* Online: connected to slave */
 	if (!l_dbus_interface_property(interface, "Online", 0, "b",
 				       property_get_online,
-				       property_set_enable))
+				       NULL))
 		l_error("Can't add 'Online' property");
 
 }
@@ -648,6 +618,8 @@ struct slave *slave_create(const char *key, uint8_t id,
 		storage_write_key_string(slaves_fd, key,
 					 "IpAddress", address);
 	}
+
+	slave->poll_to = l_timeout_create(1, enable_slave, slave, NULL);
 
 	return slave_ref(slave);
 }
