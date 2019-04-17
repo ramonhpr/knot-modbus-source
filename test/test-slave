@@ -45,22 +45,12 @@ def main(options,args):
         dbus_dict = dbus.Dictionary(slave_dict, signature='sv')
         path = manager.AddSlave(dbus_dict)
         print ("PATH: %s" % path)
-        obj_add = bus.get_object("br.org.cesar.modbus", path)
-        slave = dbus.Interface(obj_add, "org.freedesktop.DBus.Properties")
-        slave.Set("br.org.cesar.modbus.Slave1", "Enable", True)
         return 0
 
     if (cmd == "remove"):
         print ("Removing slave %s" % args[1])
         devpath = dbus.ObjectPath(args[1])
         print (manager.RemoveSlave(devpath))
-        return 0
-
-    if (cmd == "enable"):
-        print ("PATH: %s" % path)
-        enable = dbus.Boolean(args[1])
-        slave = dbus.Interface(obj, "org.freedesktop.DBus.Properties")
-        slave.Set("br.org.cesar.modbus.Slave1", "Enable", enable)
         return 0
 
     if (cmd == "list"):
@@ -94,10 +84,6 @@ def main(options,args):
             dbus_dict = dbus.Dictionary(slave_dict, signature='sv')
             path = manager.AddSlave(dbus_dict)
             print ("PATH: %s" % path)
-            obj_add = bus.get_object("br.org.cesar.modbus",path)
-            slave = dbus.Interface(obj_add, "org.freedesktop.DBus.Properties")
-            slave.Set("br.org.cesar.modbus.Slave1", "Enable", True)
-            print("Created: test_{} - {}".format(int(idval),addrval))
         return 0
 
 
