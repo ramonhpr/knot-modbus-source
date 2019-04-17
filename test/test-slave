@@ -1,43 +1,48 @@
 #!/usr/bin/python
-from optparse import OptionParser, make_option
+from argparse import ArgumentParser
 from random import randint
 import sys
 import dbus
 
 
-def main(options,args):
+def main(args):
     bus = dbus.SystemBus()
-    if (len(args) < 1):
-        print("Usage: %s <command>" % (sys.argv[0]))
+    print(args)
+    if (args.help == True):
+        print("Usage: %s [-h] [-a ID NAME IPADDRESS] [-c N] [-l] [-rm PATH] [-p"
+              " PATH]" % (sys.argv[0]))
         print("")
-        print("  info")
-        print("  add [Id] [Name] [Address] (Adds a new slave)")
-        print("  create [n] (Adds n new slaves)")
-        print("  remove [slave path] (remove a given slave)")
-        return 1
+        print("Optional arguments:")
+        print("  -a ID NAME IP:PORT, --add ID NAME IP:PORT\n"
+              "                        adds a new slave")
+        print("  -c N,--create N       adds n new slaves")
+        print("  -h, --help            show this help massage and exit")
+        print("  -l, --list            list all slaves")
+        print("  -p PATH, --path PATH  specify the path to manipulate slaves")
+        print("  -rm SLAVEPATH, --remove SLAVEPATH\n"
+              "                        remove a given slave")
+        return 0
 
-    cmd = args[0]
-    if (options.path):
-        path = options.path
-    else:
+    if (args.path == None):
         path = "/"
+    else:
+        path = args.path
 
     obj = bus.get_object("br.org.cesar.modbus", path)
     props = dbus.Interface(obj, "org.freedesktop.DBus.Properties")
     manager = dbus.Interface(obj, "br.org.cesar.modbus.Manager1")
+    # if (cmd == "info"):
+    #     print (props.GetAll("br.org.cesar.modbus.Manager1"))
+    #     return 0
 
-    if (cmd == "info"):
-        print (props.GetAll("br.org.cesar.modbus.Manager1"))
-        return 0
-
-    if (cmd == "add"):
+    if (args.add != None):
         print ("Adding slave:")
-        print ("  Id:  %s (1 - 247)" % args[1])
-        print ("  Name:  %s" % args[2])
-        print ("  Address:  %s (host:port)" % args[3])
-        idval = dbus.Byte(int(args[1]))
-        nameval = dbus.String(args[2])
-        addrval = dbus.String(args[3])
+        print ("  Id:  %s (1 - 247)" % args.add[0])
+        print ("  Name:  %s" % args.add[1])
+        print ("  Address:  %s (host:port)" % args.add[2])
+        idval = dbus.Byte(int(args.add[0]))
+        nameval = dbus.String(args.add[1])
+        addrval = dbus.String(args.add[2])
         slave_dict = dict()
         slave_dict.update({"Id": idval})
         slave_dict.update({"Name": nameval})
@@ -47,13 +52,20 @@ def main(options,args):
         print ("PATH: %s" % path)
         return 0
 
-    if (cmd == "remove"):
-        print ("Removing slave %s" % args[1])
-        devpath = dbus.ObjectPath(args[1])
+    if (args.remove != None):
+        print ("Removing slave %s" % args.remove)
+        devpath = dbus.ObjectPath(args.remove)
         print (manager.RemoveSlave(devpath))
         return 0
 
-    if (cmd == "list"):
+    # if (args.enable != None):
+    #     print ("PATH: %s" % path)
+    #     enable = dbus.Boolean(args.enable)
+    #     slave = dbus.Interface(obj, "org.freedesktop.DBus.Properties")
+    #     slave.Set("br.org.cesar.modbus.Slave1", "Enable", enable)
+    #     return 0
+
+    if (args.list == True):
         iface = dbus.Interface(obj,"org.freedesktop.DBus.ObjectManager")
         slaves = []
         for aux in iface.GetManagedObjects():
@@ -70,11 +82,11 @@ def main(options,args):
             print("Slaves found: {}".format(slaves))
             return 0
 
-    if (cmd == "create"):
+    if (args.create != None):
         DEFAULT_ADDR = ["google.com:80", "microsoft.com:80","engadget.com:80"]
         i = 1
 
-        for i in range(0,int(args[1])):
+        for i in range(0,args.create):
             idval = dbus.Byte(randint(1,247))
             nameval = dbus.String("test_{}".format(int(idval)))
             addrval = dbus.String(DEFAULT_ADDR[randint(0,2)])
@@ -88,9 +100,13 @@ def main(options,args):
 
 
 if __name__ == "__main__":
-    option_list = [ make_option("-p", "--path", action="store", type="string",
-                                dest="path"), ]
-    parser = OptionParser(option_list=option_list)
-    (options, args) = parser.parse_args()
-    ret = main(options, args)
+    parser = ArgumentParser(prog="./test-slave", add_help=False)
+    parser.add_argument("-p", "--path", action="store", type=str)
+    parser.add_argument("-a", "--add", action ="store", type=str, nargs=3)
+    parser.add_argument("-c", "--create",action ="store", type=int)
+    parser.add_argument("-h", "--help", action="store_true")
+    parser.add_argument("-l", "--list", action="store_true")
+    parser.add_argument("-rm","--remove",action="store",type=str)
+    (args) = parser.parse_args()
+    ret = main(args)
     sys.exit(ret)
