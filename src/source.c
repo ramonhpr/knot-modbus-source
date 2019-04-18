@@ -99,6 +99,7 @@ static struct l_dbus_message *property_set_name(struct l_dbus *dbus,
 					 l_dbus_property_complete_cb_t complete,
 					 void *user_data)
 {
+	char addrstr[7];
 	struct source *source = user_data;
 	const char *name;
 
@@ -108,7 +109,8 @@ static struct l_dbus_message *property_set_name(struct l_dbus *dbus,
 	l_free(source->name);
 	source->name = l_strdup(name);
 
-	/* TODO: re-connect? */
+	snprintf(addrstr, sizeof(addrstr), "0x%04x", source->address);
+	storage_write_key_string(source->storage, addrstr, "Name", name);
 
 	complete(dbus, msg, NULL);
 
