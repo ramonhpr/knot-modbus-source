@@ -28,7 +28,7 @@ struct source;
 struct source *source_create(const char *prefix, const char *name,
 			     const char *sig, uint16_t address,
 			     uint16_t interval, int storage_id, bool store);
-void source_destroy(struct source *source);
+void source_destroy(struct source *source, bool del);
 const char *source_get_path(const struct source *source);
 const char *source_get_signature(const struct source *source);
 uint16_t source_get_address(const struct source *source);

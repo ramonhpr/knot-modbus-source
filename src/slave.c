@@ -86,10 +86,17 @@ static void timeout_destroy(void *data)
 	l_timeout_remove(timeout);
 }
 
+static void entry_destroy(void *user_data)
+{
+	struct source *source = user_data;
+
+	/* Don't remove from storage */
+	source_destroy(source, false);
+}
+
 static void slave_free(struct slave *slave)
 {
-	l_queue_destroy(slave->source_list,
-			(l_queue_destroy_func_t) source_destroy);
+	l_queue_destroy(slave->source_list, entry_destroy);
 	l_hashmap_destroy(slave->to_list, timeout_destroy);
 
 	if (slave->io)
@@ -415,7 +422,6 @@ static struct l_dbus_message *method_source_remove(struct l_dbus *dbus,
 	struct slave *slave = user_data;
 	struct source *source;
 	const char *opath;
-	char addrstr[7];
 
 	if (!l_dbus_message_get_arguments(msg, "o", &opath))
 		return dbus_error_invalid_args(msg);
@@ -424,13 +430,8 @@ static struct l_dbus_message *method_source_remove(struct l_dbus *dbus,
 	if (unlikely(!source))
 		return dbus_error_invalid_args(msg);
 
-	snprintf(addrstr, sizeof(addrstr), "0x%04x",
-		 source_get_address(source));
-
-	if (storage_remove_group(slave->src_storage, addrstr) < 0)
-		l_info("storage(): Can't delete source!");
-
-	source_destroy(source);
+	/* Remove from storage */
+	source_destroy(source, true);
 
 	return l_dbus_message_new_method_return(msg);
 }

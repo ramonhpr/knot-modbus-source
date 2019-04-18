@@ -275,12 +275,21 @@ struct source *source_create(const char *prefix, const char *name,
 	return source_ref(source);
 }
 
-void source_destroy(struct source *source)
+void source_destroy(struct source *source, bool del)
 {
+	char addrstr[7];
+
 	l_info("source_destroy(%p)", source);
 
 	if (unlikely(!source))
 		return;
+
+	if (del) {
+		snprintf(addrstr, sizeof(addrstr), "0x%04x", source->address);
+
+		if (storage_remove_group(source->storage, addrstr) < 0)
+			l_info("storage(): Can't delete source!");
+	}
 
 	l_dbus_unregister_object(dbus_get_bus(), source->path);
 	source_unref(source);
