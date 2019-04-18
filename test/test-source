@@ -1,79 +1,93 @@
 #!/usr/bin/python
-from optparse import OptionParser, make_option
+from argparse import ArgumentParser
 import sys
 import dbus
 
 
-def main(options,args):
+def main(args):
     bus = dbus.SystemBus()
-
-    if (len(args) < 1):
-        print("Usage: %s <command>" % (sys.argv[0]))
+    print(args)
+    if (args.help == True):
+        print("Usage: {} [-h] [-a NAME TYPE OFFSET] [-c N] [-l] [-rm PATH] [-p"
+                " PATH]".format(sys.argv[0]))
         print("")
-        print("  info")
-        print("  add [Name] [Type] [Address]")
-        print("  remove [source path]")
+        print("Optional arguments:")
+        print("  -a NAME TYPE OFFSET , --add ID NAME IP:PORT\n"
+              "                   adds a new source to an slave\n"
+              "                   NAME = string\n"
+              "                   TYPE = bool(b),byte(y),uint16(q),uint32(u)\n"
+              "                   OFFSET = int\n"
+              "                   add the slave path is required")
+        print("  -h, --help       show this help massage and exit")
+        print("  -l, --list       list all sources in a given slave")
+        print("  -p PATH, --path PATH  \n"
+              "                   specify the slave's path whose sources will\n"
+              "                   be manipulated")
+        print("  -rm SOURCEPATH, --remove SOURCEPATH\n"
+              "                   remove a given source. slave path is required")
+        return 0
+
+    if (args.path):
+        obj = bus.get_object("br.org.cesar.modbus", args.path)
+        props = dbus.Interface(obj, "org.freedesktop.DBus.Properties")
+        slave = dbus.Interface(obj, "br.org.cesar.modbus.Slave1")
+    else : 
+        print("No slave path given. See help")
         return 1
 
-    cmd = args[0]
-    if (options.path):
-        path = options.path
-    else:
-        path = "/"
-
-    obj = bus.get_object("br.org.cesar.modbus", path)
-    props = dbus.Interface(obj, "org.freedesktop.DBus.Properties")
-    slave = dbus.Interface(obj, "br.org.cesar.modbus.Slave1")
-
-    if (cmd == "info"):
-        print (props.GetAll("br.org.cesar.modbus.Slave1"))
-        return 0
-
-    if (cmd == "add"):
-        print ("Adding source:")
-        print ("  Name:  %s" % args[1])
-        print ("  Type:  %s" % args[2])
-        print ("  Address:  %s" % args[3])
-
-        nameval = dbus.String(args[1])
-        typeval = dbus.String(args[2])
-        addrval = dbus.UInt16(args[3])
-        slave_dict = dict()
-        slave_dict.update({"Name": nameval})
-        slave_dict.update({"Type": typeval})
-        slave_dict.update({"Address": addrval})
-        dbus_dict = dbus.Dictionary(slave_dict, signature='sv')
-        print ("PATH: %s" % slave.AddSource(dbus_dict))
-        return 0
-
-    if (cmd == "list"):
+    if (args.list == True):
         list_obj = bus.get_object("br.org.cesar.modbus","/")
         iface = dbus.Interface(list_obj,"org.freedesktop.DBus.ObjectManager")
         sources = []
         for aux in iface.GetManagedObjects():
                 var = aux.split("/")
-                if ("/" + var[1] == path):
+                if ("/" + var[1] == args.path):
                     try:
                         sources.append(var[2])
                     except:
                         continue
         if not sources:
-            print("No sources in: {}".format(path))
+            print("No sources in: {}".format(args.path))
             return 0
         else:
-            print("Sources in {}: \n {}".format(path,sources))
+            print("Sources in {}: \n {}".format(args.path,sources))
             return 0
 
-    if (cmd == "remove"):
-        print ("Removing source %s" % args[1])
-        devpath = dbus.ObjectPath(path+args[1])
+    # if (cmd == "info"):
+    #     print (props.GetAll("br.org.cesar.modbus.Slave1"))
+    #     return 0
+
+    if (args.add != None):
+        print ("Adding source:")
+        print ("  Name:  {}".format(args.add[0]))
+        print ("  Type:  {}".format(args.add[1]))
+        print ("  Address:  {}".format(args.add[2]))
+
+        nameval = dbus.String(args.add[0])
+        typeval = dbus.String(args.add[1])
+        addrval = dbus.UInt16(args.add[2])
+        slave_dict = dict()
+        slave_dict.update({"Name": nameval})
+        slave_dict.update({"Type": typeval})
+        slave_dict.update({"Address": addrval})
+        dbus_dict = dbus.Dictionary(slave_dict, signature='sv')
+        print ("PATH: {}".format(slave.AddSource(dbus_dict)))
+        return 0
+
+
+    if (args.remove != None):
+        print ("Removing source {}".format(args.remove))
+        devpath = dbus.ObjectPath(args.path+args.remove)
         print (slave.RemoveSource(devpath))
         return 0
 
 if __name__ == "__main__":
-    option_list = [ make_option("-p", "--path", action="store", type="string",
-                                    dest="path"), ]
-    parser = OptionParser(option_list=option_list)
-    (options, args) = parser.parse_args()
-    ret = main(options, args)
+    parser = ArgumentParser(prog="./test-slave", add_help=False)
+    parser.add_argument("-p", "--path", action="store", type=str)
+    parser.add_argument("-a", "--add", action ="store", type=str, nargs=3)
+    parser.add_argument("-h", "--help", action="store_true")
+    parser.add_argument("-l", "--list", action="store_true")
+    parser.add_argument("-rm","--remove",action="store",type=str)
+    args = parser.parse_args()
+    ret = main(args)
     sys.exit(ret)
