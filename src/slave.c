@@ -172,6 +172,14 @@ static void create_source_from_storage(const char *address,
 	l_queue_push_head(slave->source_list, source);
 }
 
+static void destroy_handler(void *user_data)
+{
+	struct slave *slave = user_data;
+
+	/* Try to connect again after 5 seconds: call enable_slave */
+	l_timeout_modify(slave->poll_to, 5);
+}
+
 static void tcp_disconnected_cb(struct l_io *io, void *user_data)
 {
 	struct slave *slave = user_data;
@@ -179,7 +187,7 @@ static void tcp_disconnected_cb(struct l_io *io, void *user_data)
 	l_info("slave %p disconnected", slave);
 
 	l_hashmap_destroy(slave->to_list, timeout_destroy);
-	slave->to_list = NULL;
+	slave->to_list = l_hashmap_string_new();
 
 	modbus_close(slave->tcp);
 	modbus_free(slave->tcp);
@@ -257,6 +265,14 @@ static void polling_start(void *data, void *user_data)
 	struct l_timeout *timeout;
 	struct bond *bond;
 
+	/* timeout exists? */
+	timeout = l_hashmap_lookup(slave->to_list, source_get_path(source));
+	if (timeout) {
+		l_timeout_modify_ms(timeout, source_get_interval(source));
+		return;
+	}
+
+	/* New timeout */
 	bond = l_new(struct bond, 1);
 	bond->source = source;
 	bond->slave = slave;
@@ -265,10 +281,6 @@ static void polling_start(void *data, void *user_data)
 				      polling_to_expired, bond, l_free);
 
 	l_hashmap_insert(slave->to_list, source_get_path(source), timeout);
-
-	l_info("source(%p): %s interval: %d", source,
-	       source_get_path(source),
-	       source_get_interval(source));
 }
 
 static void enable_slave(struct l_timeout *timeout, void *user_data)
@@ -291,8 +303,7 @@ static void enable_slave(struct l_timeout *timeout, void *user_data)
 			goto error;
 
 		l_io_set_disconnect_handler(slave->io, tcp_disconnected_cb,
-					    slave_ref(slave),
-					    (l_io_destroy_cb_t) slave_unref);
+					    slave, destroy_handler);
 
 		l_queue_foreach(slave->source_list,
 				polling_start, slave);
