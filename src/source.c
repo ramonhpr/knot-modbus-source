@@ -29,15 +29,17 @@
 #include <ell/ell.h>
 
 #include "dbus.h"
+#include "storage.h"
 #include "source.h"
 
 struct source {
 	int refs;
-	char *path;
-	char *name;
-	char *sig;
-	uint16_t address;
-	uint16_t interval;
+	char *path;		/* D-Bus Object path */
+	char *name;		/* Local name */
+	char *sig;		/* D-Bus like signature */
+	uint16_t address;	/* PLC memory address */
+	uint16_t interval;	/* Polling interval in ms */
+	int storage;		/* Storage identification */
 	union {
 		bool vbool;
 		uint8_t vu8;
@@ -220,12 +222,12 @@ void source_stop(void)
 }
 
 struct source *source_create(const char *prefix, const char *name,
-			  const char *sig, uint16_t address, uint16_t interval)
+			     const char *sig, uint16_t address,
+			     uint16_t interval, int storage_id, bool store)
 {
+	char addrstr[7];
 	struct source *source;
 	char *dpath;
-
-	/* TODO: Already exists? */
 
 	dpath = l_strdup_printf("%s/source_%04x", prefix, address);
 
@@ -236,9 +238,8 @@ struct source *source_create(const char *prefix, const char *name,
 	source->address = address;
 	source->path = NULL;
 	source->interval = interval;
+	source->storage = storage_id;
 	memset(&source->value, 0, sizeof(source->value));
-
-	/* TODO: Connect to peer */
 
 	if (!l_dbus_register_object(dbus_get_bus(),
 				    dpath,
@@ -256,6 +257,18 @@ struct source *source_create(const char *prefix, const char *name,
 	l_info("New source: %s", dpath);
 
 	source->path = dpath;
+
+	/*
+	 * store 'false' means that source is being created from persistent
+	 * storage, 'true' means that a new source object has been created.
+	 */
+	if (store) {
+		snprintf(addrstr, sizeof(addrstr), "0x%04x", address);
+		storage_write_key_string(storage_id, addrstr, "Name", name);
+		storage_write_key_string(storage_id, addrstr, "Type", sig);
+		storage_write_key_int(storage_id, addrstr,
+				      "PollingInterval", interval);
+	}
 
 	return source_ref(source);
 }

@@ -43,17 +43,17 @@ struct slave {
 	int refs;
 	char *key;	/* Local random id */
 	uint8_t id;	/* modbus slave id */
-	char *name;
-	char *path;
-	char *ipaddress;
-	char *hostname;
+	char *name;	/* Local (user friendly) name */
+	char *path;	/* D-Bus Object path */
+	char *ipaddress; /* URL including port. Format: hostname:port */
+	char *hostname; /* hostname: substring og ipaddress */
 	char *port; /* getaddrinfo service */
 	modbus_t *tcp;
-	struct l_io *io;
-	struct l_queue *source_list;
-	struct l_hashmap *to_list;
-	int sources_fd;
-	struct l_timeout *poll_to;
+	struct l_io *io; /* TCP IO channel */
+	struct l_queue *source_list;	/* Child sources */
+	struct l_hashmap *to_list;	/* Reading/Polling timeout */
+	int src_storage;		/* Source storage id */
+	struct l_timeout *poll_to;	/* Connection attempt timeout */
 };
 
 struct bond {
@@ -61,7 +61,7 @@ struct bond {
 	struct source *source;
 };
 
-static int slaves_fd;
+static int slaves_storage;
 
 static bool path_cmp(const void *a, const void *b)
 {
@@ -102,7 +102,7 @@ static void slave_free(struct slave *slave)
 	if (slave->poll_to)
 		l_timeout_remove(slave->poll_to);
 
-	storage_close(slave->sources_fd);
+	storage_close(slave->src_storage);
 	l_free(slave->key);
 	l_free(slave->ipaddress);
 	l_free(slave->hostname);
@@ -165,7 +165,8 @@ static void create_source_from_storage(const char *address,
 	if (sscanf(address, "0x%04x", &uaddr) != 1)
 		return;
 
-	source = source_create(slave->path, name, type, uaddr, interval);
+	source = source_create(slave->path, name, type, uaddr,
+			       interval, slave->src_storage, false);
 	if (!source)
 		return;
 
@@ -335,7 +336,6 @@ static struct l_dbus_message *method_source_add(struct l_dbus *dbus,
 	struct l_dbus_message_builder *builder;
 	struct l_dbus_message_iter dict;
 	struct l_dbus_message_iter value;
-	char addrstr[7];
 	char signature[2];
 	const char *key = NULL;
 	const char *name = NULL;
@@ -387,7 +387,8 @@ static struct l_dbus_message *method_source_add(struct l_dbus *dbus,
 		return dbus_error_invalid_args(msg);
 	}
 
-	source = source_create(slave->path, name, type, address, interval);
+	source = source_create(slave->path, name, type, address, interval,
+			       slave->src_storage, true);
 	if (!source)
 		return dbus_error_invalid_args(msg);
 
@@ -400,14 +401,6 @@ static struct l_dbus_message *method_source_add(struct l_dbus *dbus,
 	l_dbus_message_builder_destroy(builder);
 
 	l_queue_push_head(slave->source_list, source);
-
-	snprintf(addrstr, sizeof(addrstr), "0x%04x", address);
-	storage_write_key_string(slave->sources_fd, addrstr,
-				 "Name", name);
-	storage_write_key_string(slave->sources_fd, addrstr,
-				 "Type", type);
-	storage_write_key_int(slave->sources_fd, addrstr,
-			      "PollingInterval", interval);
 
 	if (slave->io)
 		polling_start(source, slave);
@@ -434,7 +427,7 @@ static struct l_dbus_message *method_source_remove(struct l_dbus *dbus,
 	snprintf(addrstr, sizeof(addrstr), "0x%04x",
 		 source_get_address(source));
 
-	if (storage_remove_group(slave->sources_fd, addrstr) < 0)
+	if (storage_remove_group(slave->src_storage, addrstr) < 0)
 		l_info("storage(): Can't delete source!");
 
 	source_destroy(source);
@@ -486,7 +479,7 @@ static struct l_dbus_message *property_set_name(struct l_dbus *dbus,
 
 	complete(dbus, msg, NULL);
 
-	storage_write_key_string(slaves_fd, slave->key, "Name", name);
+	storage_write_key_string(slaves_storage, slave->key, "Name", name);
 
 	return NULL;
 }
@@ -596,7 +589,7 @@ struct slave *slave_create(const char *key, uint8_t id,
 	memset(&st, 0, sizeof(st));
 	st_ret = stat(filename, &st);
 
-	slave->sources_fd = storage_open(filename);
+	slave->src_storage = storage_open(filename);
 	l_free(filename);
 
 	if (!l_dbus_register_object(dbus_get_bus(),
@@ -619,14 +612,14 @@ struct slave *slave_create(const char *key, uint8_t id,
 
 	if (st_ret == 0) {
 		/* Slave created from storage */
-		storage_foreach_source(slave->sources_fd,
+		storage_foreach_source(slave->src_storage,
 				       create_source_from_storage, slave);
 	} else {
 		/* New slave */
-		storage_write_key_int(slaves_fd, key, "Id", id);
-		storage_write_key_string(slaves_fd, key,
+		storage_write_key_int(slaves_storage, key, "Id", id);
+		storage_write_key_string(slaves_storage, key,
 					 "Name", name ? : address);
-		storage_write_key_string(slaves_fd, key,
+		storage_write_key_string(slaves_storage, key,
 					 "IpAddress", address);
 	}
 
@@ -673,7 +666,7 @@ void slave_destroy(struct slave *slave, bool rm)
 	l_free(filename);
 
 	/* Remove group from slaves.conf */
-	if (storage_remove_group(slaves_fd, slave->key) < 0)
+	if (storage_remove_group(slaves_storage, slave->key) < 0)
 		l_info("storage(): Can't delete slave!");
 
 done:
@@ -696,8 +689,8 @@ struct l_queue *slave_start(void)
 	l_info("Starting slave ...");
 
 	/* Slave settings file */
-	slaves_fd = storage_open(filename);
-	if (slaves_fd < 0) {
+	slaves_storage = storage_open(filename);
+	if (slaves_storage < 0) {
 		l_error("Can not open/create slave files!");
 		return NULL;
 	}
@@ -711,7 +704,7 @@ struct l_queue *slave_start(void)
 	source_start();
 
 	list = l_queue_new();
-	storage_foreach_slave(slaves_fd, create_slave_from_storage, list);
+	storage_foreach_slave(slaves_storage, create_slave_from_storage, list);
 
 	return list;
 }
@@ -719,7 +712,7 @@ struct l_queue *slave_start(void)
 void slave_stop(void)
 {
 
-	storage_close(slaves_fd);
+	storage_close(slaves_storage);
 
 	source_stop();
 
