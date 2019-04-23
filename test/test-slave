@@ -6,7 +6,6 @@ import dbus
 
 
 def main(args):
-    bus = dbus.SystemBus()
     if (args.help == True):
         print("Usage: {} [-h] [-a ID NAME IPADDRESS] [-c N] [-l] [-rm PATH] [-p"
               " PATH]".format(sys.argv[0]))
@@ -21,7 +20,14 @@ def main(args):
         print("  -p PATH, --path PATH  specify the path to manipulate slaves")
         print("  -rm SLAVEPATH, --remove SLAVEPATH\n"
               "                        remove a given slave")
+        print("  -A ADDRESS, --dbus-address ADDRESS\n"
+              "                        dbus address to connect")
         return 0
+
+    if (args.address):
+        bus = dbus.bus.BusConnection(args.address)
+    else:
+        bus = dbus.SystemBus()
 
     if (args.path == None):
         path = "/"
@@ -96,6 +102,7 @@ def main(args):
 if __name__ == "__main__":
     parser = ArgumentParser(prog="./test-slave", add_help=False)
     parser.add_argument("-p", "--path", action="store", type=str)
+    parser.add_argument('-A', '--dbus-address', dest="address", type=str)
     parser.add_argument("-a", "--add", action ="store", type=str, nargs=3)
     parser.add_argument("-rm", "--remove", action="store", type=str)
     parser.add_argument("-h", "--help", action="store_true")

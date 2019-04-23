@@ -5,7 +5,6 @@ import dbus
 
 
 def main(args):
-    bus = dbus.SystemBus()
     if (args.help == True):
         print("Usage: {} [-h] [-a NAME TYPE OFFSET] [-c N] [-l] [-rm PATH] [-p"
                 " PATH]".format(sys.argv[0]))
@@ -24,7 +23,14 @@ def main(args):
               "                   be manipulated")
         print("  -rm SOURCEPATH, --remove SOURCEPATH\n"
               "                   remove a given source. slave path is required")
+        print("  -A ADDRESS, --dbus-address ADDRESS\n"
+              "                        dbus address to connect")
         return 0
+
+    if (args.address):
+        bus = dbus.bus.BusConnection(args.address)
+    else:
+        bus = dbus.SystemBus()
 
     if (args.path):
         obj = bus.get_object("br.org.cesar.modbus", args.path)
@@ -79,6 +85,7 @@ def main(args):
 if __name__ == "__main__":
     parser = ArgumentParser(prog="./test-slave", add_help=False)
     parser.add_argument("-p", "--path", action="store", type=str)
+    parser.add_argument('-A', '--dbus-address', dest="address", type=str)
     parser.add_argument("-a", "--add", action ="store", type=str, nargs=3)
     parser.add_argument("-h", "--help", action="store_true")
     parser.add_argument("-l", "--list", action="store_true")
