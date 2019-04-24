@@ -42,7 +42,8 @@ static modbus_t *create(const char *url)
 	memset(hostname, 0, sizeof(hostname));
 	memset(port, 0, sizeof(port));
 
-	if (sscanf(url, "%127[^:]:%7s", hostname, port) != 2) {
+	/* Ignoring "tcp://" */
+	if (sscanf(&url[6], "%127[^:]:%7s", hostname, port) != 2) {
 		l_error("Address (%s) not supported: Invalid format", url);
 		return NULL;
 	}
