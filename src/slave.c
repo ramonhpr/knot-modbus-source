@@ -187,7 +187,7 @@ static void destroy_handler(void *user_data)
 	l_timeout_modify(slave->poll_to, 5);
 }
 
-static void tcp_disconnected_cb(struct l_io *io, void *user_data)
+static void disconnected_cb(struct l_io *io, void *user_data)
 {
 	struct slave *slave = user_data;
 	struct modbus_driver *driver = slave->drv;
@@ -308,7 +308,7 @@ static void enable_slave(struct l_timeout *timeout, void *user_data)
 		if (slave->io == NULL)
 			goto error;
 
-		l_io_set_disconnect_handler(slave->io, tcp_disconnected_cb,
+		l_io_set_disconnect_handler(slave->io, disconnected_cb,
 					    slave, destroy_handler);
 
 		l_queue_foreach(slave->source_list,
