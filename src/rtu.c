@@ -42,6 +42,8 @@ static modbus_t *create(const char *url)
 	 */
 
 	/* Ignoring "serial:/" */
+	l_info("RTU: %s", url);
+
 	return modbus_new_rtu(&url[8], 115200, 'N', 8, 1);
 }
 

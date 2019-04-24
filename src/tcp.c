@@ -48,6 +48,8 @@ static modbus_t *create(const char *url)
 		return NULL;
 	}
 
+	l_info("RTU: %s", url);
+
 	return modbus_new_tcp_pi(hostname, port);
 }
 
