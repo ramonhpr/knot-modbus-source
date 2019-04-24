@@ -37,6 +37,7 @@
 #include "dbus.h"
 #include "storage.h"
 #include "source.h"
+#include "driver.h"
 #include "slave.h"
 
 struct slave {
@@ -46,20 +47,21 @@ struct slave {
 	char *name;	/* Local (user friendly) name */
 	char *path;	/* D-Bus Object path */
 	char *ipaddress; /* URL including port. Format: hostname:port */
-	char *hostname; /* hostname: substring og ipaddress */
-	char *port; /* getaddrinfo service */
-	modbus_t *tcp;
+	modbus_t *modbus;
 	struct l_io *io; /* TCP IO channel */
 	struct l_queue *source_list;	/* Child sources */
 	struct l_hashmap *to_list;	/* Reading/Polling timeout */
 	int src_storage;		/* Source storage id */
 	struct l_timeout *poll_to;	/* Connection attempt timeout */
+	struct modbus_driver *drv;	/* TCP or Serial */
 };
 
 struct bond {
 	struct slave *slave;
 	struct source *source;
 };
+
+extern struct modbus_driver tcp;
 
 static int slaves_storage;
 
@@ -101,10 +103,8 @@ static void slave_free(struct slave *slave)
 
 	if (slave->io)
 		l_io_destroy(slave->io);
-	if (slave->tcp) {
-		modbus_close(slave->tcp);
-		modbus_free(slave->tcp);
-	}
+	if (slave->modbus)
+		slave->drv->destroy(slave->modbus);
 
 	if (slave->poll_to)
 		l_timeout_remove(slave->poll_to);
@@ -112,8 +112,6 @@ static void slave_free(struct slave *slave)
 	storage_close(slave->src_storage);
 	l_free(slave->key);
 	l_free(slave->ipaddress);
-	l_free(slave->hostname);
-	l_free(slave->port);
 	l_free(slave->name);
 	l_free(slave->path);
 	l_info("slave_free(%p)", slave);
@@ -191,15 +189,15 @@ static void destroy_handler(void *user_data)
 static void tcp_disconnected_cb(struct l_io *io, void *user_data)
 {
 	struct slave *slave = user_data;
+	struct modbus_driver *driver = slave->drv;
 
 	l_info("slave %p disconnected", slave);
 
 	l_hashmap_destroy(slave->to_list, timeout_destroy);
 	slave->to_list = l_hashmap_string_new();
 
-	modbus_close(slave->tcp);
-	modbus_free(slave->tcp);
-	slave->tcp = NULL;
+	driver->destroy(slave->modbus);
+	slave->modbus = NULL;
 
 	l_io_destroy(slave->io);
 	slave->io = NULL;
@@ -213,8 +211,10 @@ static void polling_to_expired(struct l_timeout *timeout, void *user_data)
 	struct bond *bond = user_data;
 	struct source *source = bond->source;
 	struct slave *slave = bond->slave;
+	struct modbus_driver *driver = slave->drv;
 	const char *sig = source_get_signature(source);
 	uint16_t u16_addr = source_get_address(source);
+	bool val_bool;
 	uint8_t val_u8 = 0;
 	uint16_t val_u16 = 0;
 	uint32_t val_u32 = 0;
@@ -225,32 +225,30 @@ static void polling_to_expired(struct l_timeout *timeout, void *user_data)
 
 	switch (sig[0]) {
 	case 'b':
-		ret = modbus_read_input_bits(slave->tcp, u16_addr, 1, &val_u8);
+		ret = driver->read_bool(slave->modbus, u16_addr, &val_bool);
 		if (ret != -1)
-			source_set_value_bool(source, val_u8 ? true : false);
+			source_set_value_bool(source, val_bool);
 		break;
 	case 'y':
-		ret = modbus_read_input_bits(slave->tcp, u16_addr, 8, &val_u8);
+		ret = driver->read_byte(slave->modbus, u16_addr, &val_u8);
 		if (ret != -1)
 			source_set_value_byte(source, val_u8);
 
 		break;
 	case 'q':
-		ret = modbus_read_registers(slave->tcp, u16_addr, 1, &val_u16);
+		ret = driver->read_u16(slave->modbus, u16_addr, &val_u16);
 		if (ret != -1)
 			source_set_value_u16(source, val_u16);
 		break;
 	case 'u':
 		/* Assuming network order */
-		ret = modbus_read_registers(slave->tcp, u16_addr, 2,
-					    (uint16_t *) &val_u32);
+		ret = driver->read_u32(slave->modbus, u16_addr, &val_u32);
 		if (ret != -1)
 			source_set_value_u32(source, L_BE32_TO_CPU(val_u32));
 		break;
 	case 't':
 		/* Assuming network order */
-		ret = modbus_read_registers(slave->tcp, u16_addr, 4,
-					    (uint16_t *) &val_u64);
+		ret = driver->read_u64(slave->modbus, u16_addr, &val_u64);
 		if (ret != -1)
 			source_set_value_u64(source, L_BE64_TO_CPU(val_u64));
 		break;
@@ -294,19 +292,18 @@ static void polling_start(void *data, void *user_data)
 static void enable_slave(struct l_timeout *timeout, void *user_data)
 {
 	struct slave *slave = user_data;
+	struct modbus_driver *driver = slave->drv;
 	int err;
 
 	/* Already connected ? */
-	if (slave->tcp)
+	if (slave->modbus)
 		return;
 
-	slave->tcp = modbus_new_tcp_pi(slave->hostname, slave->port);
-	modbus_set_slave(slave->tcp, slave->id);
+	slave->modbus = driver->create(slave->ipaddress);
+	modbus_set_slave(slave->modbus, slave->id);
 
-	err = modbus_connect(slave->tcp);
-	l_info("connect() %s:%s (%d)", slave->hostname, slave->port, err);
-	if (err != -1) {
-		slave->io = l_io_new(modbus_get_socket(slave->tcp));
+	if (modbus_connect(slave->modbus) != -1) {
+		slave->io = l_io_new(modbus_get_socket(slave->modbus));
 		if (slave->io == NULL)
 			goto error;
 
@@ -325,9 +322,12 @@ static void enable_slave(struct l_timeout *timeout, void *user_data)
 error:
 	/* Releasing connection */
 	err = errno;
-	modbus_close(slave->tcp);
-	modbus_free(slave->tcp);
-	slave->tcp = NULL;
+
+	l_info("connect(%p): %s(%d)", slave->modbus, strerror(err), err);
+
+	driver->destroy(slave->modbus);
+
+	slave->modbus = NULL;
 
 	/* Try again in 5 seconds */
 	l_timeout_modify(timeout, 5);
@@ -506,7 +506,7 @@ static bool property_get_online(struct l_dbus *dbus,
 	struct slave *slave = user_data;
 	bool online;
 
-	online = (slave->tcp ? true : false);
+	online = (slave->modbus ? true : false);
 
 	l_dbus_message_builder_append_basic(builder, 'b', &online);
 
@@ -553,19 +553,26 @@ struct slave *slave_create(const char *key, uint8_t id,
 			   const char *name, const char *address)
 {
 	struct slave *slave;
+	struct modbus_driver *drv;
 	struct stat st;
 	char *dpath;
 	char *filename;
-	char hostname[128];
-	char port[8];
 	int st_ret;
 
-	/* "host:port or /dev/ttyACM0, /dev/ttyUSB0, ..."*/
+	/* "tcp://host:port or serial://dev/ttyUSB0, ... "*/
 
-	memset(hostname, 0, sizeof(hostname));
-	memset(port, 0, sizeof(port));
-	if (sscanf(address, "%127[^:]:%7s", hostname, port) != 2) {
-		l_error("Address (%s) not supported: Invalid format", address);
+	if (!address)
+		return NULL;
+
+	/* FIXME: not possible to detect syntax error */
+
+	if (strcmp("tcp://", address) < 0)
+		drv = &tcp;
+	else if (strcmp("serial://", address) < 0) {
+		l_info("Not implemented!");
+		return NULL;
+	} else {
+		l_info("Invalid address!");
 		return NULL;
 	}
 
@@ -577,12 +584,11 @@ struct slave *slave_create(const char *key, uint8_t id,
 	slave->id = id;
 	slave->name = l_strdup(name);
 	slave->ipaddress = l_strdup(address);
-	slave->hostname = l_strdup(hostname);
-	slave->port = l_strdup(port);
-	slave->tcp = NULL;
+	slave->modbus = NULL;
 	slave->io = NULL;
 	slave->source_list = l_queue_new();
 	slave->to_list = l_hashmap_string_new();
+	slave->drv = drv;
 
 	filename = l_strdup_printf("%s/%s/sources.conf",
 				   STORAGEDIR, slave->key);
@@ -608,8 +614,7 @@ struct slave *slave_create(const char *key, uint8_t id,
 
 	slave->path = dpath;
 
-	l_info("Slave(%p): (%s) hostname: (%s) port: (%s)",
-					slave, dpath, hostname, port);
+	l_info("Slave(%p): (%s) address: (%s)", slave, dpath, address);
 
 	if (st_ret == 0) {
 		/* Slave created from storage */

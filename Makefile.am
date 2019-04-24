@@ -15,6 +15,7 @@ src_modbusd_SOURCES = src/main.c \
 			src/slave.h src/slave.c \
 			src/source.h src/source.c \
 			src/dbus.h src/dbus.c \
+			src/driver.h src/tcp.c \
 			src/storage.h src/storage.c
 
 src_modbusd_LDADD = $(modules_ldadd) @ELL_LIBS@  @MODBUS_LIBS@ -lm
