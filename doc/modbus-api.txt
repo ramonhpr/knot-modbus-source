@@ -77,10 +77,13 @@ Properties
 		Modbus slave id field.
 
 
-		string IpAddress [readonly]
+		string URL [readonly]
 
 		URL/address of the host that exposes modbus variables.
-		Format is 'hostname:port' or IPv4/IPv6 address.
+		Format is
+			"tcp://hostname(or ip):port",
+			"serial://dev/ttyUSB0" or
+			"serial://dev/ttyUSBx:115200,'N',8,1"
 
 
 		boolean Online [readonly]

@@ -145,7 +145,7 @@ void storage_foreach_slave(int fd, storage_foreach_slave_t func,
 	struct l_settings *settings;
 	char **groups;
 	char *name;
-	char *address;
+	char *url;
 	int i;
 	int id;
 
@@ -163,12 +163,11 @@ void storage_foreach_slave(int fd, storage_foreach_slave_t func,
 		if (!name)
 			continue;
 
-		address = l_settings_get_string(settings, groups[i],
-						"IpAddress");
-		if (address)
-			func(groups[i], id, name, address, user_data);
+		url = l_settings_get_string(settings, groups[i], "URL");
+		if (url)
+			func(groups[i], id, name, url, user_data);
 
-		l_free(address);
+		l_free(url);
 		l_free(name);
 	}
 

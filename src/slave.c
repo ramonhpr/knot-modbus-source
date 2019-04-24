@@ -46,7 +46,12 @@ struct slave {
 	uint8_t id;	/* modbus slave id */
 	char *name;	/* Local (user friendly) name */
 	char *path;	/* D-Bus Object path */
-	char *ipaddress; /* URL including port. Format: hostname:port */
+	/*
+	 * Hostname or serial port address. Serial may include settings.
+	 * Format: "tcp://hostname:port", "serial://dev/ttyUSBx" or
+	 * "serial://dev/ttyUSBx:115200,'N',8,1"
+	 */
+	char *url;
 	modbus_t *modbus;
 	struct l_io *io; /* TCP IO channel */
 	struct l_queue *source_list;	/* Child sources */
@@ -112,7 +117,7 @@ static void slave_free(struct slave *slave)
 
 	storage_close(slave->src_storage);
 	l_free(slave->key);
-	l_free(slave->ipaddress);
+	l_free(slave->url);
 	l_free(slave->name);
 	l_free(slave->path);
 	l_info("slave_free(%p)", slave);
@@ -145,13 +150,13 @@ static void slave_unref(struct slave *slave)
 static void create_slave_from_storage(const char *key,
 				int slave_id,
 				const char *name,
-				const char *address,
+				const char *url,
 				void *user_data)
 {
 	struct l_queue *list = user_data;
 	struct slave *slave;
 
-	slave = slave_create(key, slave_id, name, address);
+	slave = slave_create(key, slave_id, name, url);
 	if (!slave)
 		return;
 
@@ -300,7 +305,7 @@ static void enable_slave(struct l_timeout *timeout, void *user_data)
 	if (slave->modbus)
 		return;
 
-	slave->modbus = driver->create(slave->ipaddress);
+	slave->modbus = driver->create(slave->url);
 	modbus_set_slave(slave->modbus, slave->id);
 
 	if (modbus_connect(slave->modbus) != -1) {
@@ -486,15 +491,15 @@ static struct l_dbus_message *property_set_name(struct l_dbus *dbus,
 	return NULL;
 }
 
-static bool property_get_ipaddress(struct l_dbus *dbus,
+static bool property_get_url(struct l_dbus *dbus,
 				  struct l_dbus_message *msg,
 				  struct l_dbus_message_builder *builder,
 				  void *user_data)
 {
 	struct slave *slave = user_data;
 
-	/* PLC/Peer IP address */
-	l_dbus_message_builder_append_basic(builder, 's', slave->ipaddress);
+	/* PLC/Peer IP address or Serial port */
+	l_dbus_message_builder_append_basic(builder, 's', slave->url);
 
 	return true;
 }
@@ -536,11 +541,11 @@ static void setup_interface(struct l_dbus_interface *interface)
 				       property_set_name))
 		l_error("Can't add 'Name' property");
 
-	/* Per/PLC IP address including port. Format: 'hostname:port' */
-	if (!l_dbus_interface_property(interface, "IpAddress", 0, "s",
-				       property_get_ipaddress,
+	/* Per/PLC IP url including port. Format: 'hostname:port' */
+	if (!l_dbus_interface_property(interface, "URL", 0, "s",
+				       property_get_url,
 				       NULL))
-		l_error("Can't add 'IpAddress' property");
+		l_error("Can't add 'URL' property");
 
 	/* Online: connected to slave */
 	if (!l_dbus_interface_property(interface, "Online", 0, "b",
@@ -551,7 +556,7 @@ static void setup_interface(struct l_dbus_interface *interface)
 }
 
 struct slave *slave_create(const char *key, uint8_t id,
-			   const char *name, const char *address)
+			   const char *name, const char *url)
 {
 	struct slave *slave;
 	struct modbus_driver *drv;
@@ -562,17 +567,17 @@ struct slave *slave_create(const char *key, uint8_t id,
 
 	/* "tcp://host:port or serial://dev/ttyUSB0, ... "*/
 
-	if (!address)
+	if (!url)
 		return NULL;
 
 	/* FIXME: not possible to detect syntax error */
 
-	if (strcmp("tcp://", address) < 0)
+	if (strcmp("tcp://", url) < 0)
 		drv = &tcp;
-	else if (strcmp("serial://", address) < 0) {
+	else if (strcmp("serial://", url) < 0) {
 		drv = &rtu;
 	} else {
-		l_info("Invalid address!");
+		l_info("Invalid url!");
 		return NULL;
 	}
 
@@ -583,7 +588,7 @@ struct slave *slave_create(const char *key, uint8_t id,
 	slave->key = l_strdup(key);
 	slave->id = id;
 	slave->name = l_strdup(name);
-	slave->ipaddress = l_strdup(address);
+	slave->url = l_strdup(url);
 	slave->modbus = NULL;
 	slave->io = NULL;
 	slave->source_list = l_queue_new();
@@ -614,7 +619,7 @@ struct slave *slave_create(const char *key, uint8_t id,
 
 	slave->path = dpath;
 
-	l_info("Slave(%p): (%s) address: (%s)", slave, dpath, address);
+	l_info("Slave(%p): (%s) url: (%s)", slave, dpath, url);
 
 	if (st_ret == 0) {
 		/* Slave created from storage */
@@ -624,9 +629,9 @@ struct slave *slave_create(const char *key, uint8_t id,
 		/* New slave */
 		storage_write_key_int(slaves_storage, key, "Id", id);
 		storage_write_key_string(slaves_storage, key,
-					 "Name", name ? : address);
+					 "Name", name ? : url);
 		storage_write_key_string(slaves_storage, key,
-					 "IpAddress", address);
+					 "URL", url);
 	}
 
 	slave->poll_to = l_timeout_create(1, enable_slave, slave, NULL);

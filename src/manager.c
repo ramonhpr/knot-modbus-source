@@ -77,7 +77,7 @@ static struct l_dbus_message *method_slave_add(struct l_dbus *dbus,
 	while (l_dbus_message_iter_next_entry(&dict, &key, &value)) {
 		if (strcmp(key, "Name") == 0)
 			l_dbus_message_iter_get_variant(&value, "s", &name);
-		else if (strcmp(key, "IpAddress") == 0)
+		else if (strcmp(key, "URL") == 0)
 			l_dbus_message_iter_get_variant(&value, "s", &address);
 		else if (strcmp(key, "Id") == 0)
 			l_dbus_message_iter_get_variant(&value, "y", &slave_id);
