@@ -62,6 +62,7 @@ struct bond {
 };
 
 extern struct modbus_driver tcp;
+extern struct modbus_driver rtu;
 
 static int slaves_storage;
 
@@ -569,8 +570,7 @@ struct slave *slave_create(const char *key, uint8_t id,
 	if (strcmp("tcp://", address) < 0)
 		drv = &tcp;
 	else if (strcmp("serial://", address) < 0) {
-		l_info("Not implemented!");
-		return NULL;
+		drv = &rtu;
 	} else {
 		l_info("Invalid address!");
 		return NULL;
