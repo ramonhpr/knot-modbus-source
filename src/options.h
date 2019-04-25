@@ -19,5 +19,22 @@
  *
  */
 
-int manager_start(const char *opts_file);
-void manager_stop(void);
+struct main_options {
+	bool		tcp;			/* D-Bus TCP - default false */
+	uint16_t	polling_interval;	/* Source reading interval */
+};
+
+/*
+ * Supported baud rates:
+ *	110, 300, 600, 1200, 2400, 4800, 9600, 14400, 19200, 38400,
+ *	57600, 115200, 230400, 250000, 460800, 500000, 921600, 1000000
+ */
+struct serial_options {
+	int		baud;  /* See above */
+	char		parity; /* N, E, O */
+	int		data_bit; /* 5, 6, 7, 8 */
+	int		stop_bit; /* 1 or 2 */
+};
+
+extern struct main_options main_opts;
+extern struct serial_options serial_opts;

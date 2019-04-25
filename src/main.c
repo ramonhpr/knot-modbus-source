@@ -32,7 +32,7 @@
 
 #include "manager.h"
 
-static const char *config_file;
+static const char *opts_file;
 
 static void signal_handler(uint32_t signo, void *user_data)
 {
@@ -63,7 +63,7 @@ static int parse_args(int argc, char *argv[])
 
 		switch (opt) {
 		case 'c':
-			config_file = optarg;
+			opts_file = optarg;
 			break;
 		default:
 			return -EINVAL;
@@ -91,11 +91,7 @@ int main(int argc, char *argv[])
 
 	l_log_set_stderr();
 
-	/*
-	 * FIXME: config_file is not being used. Generic settings may
-	 * be added such as default PollingInterval, and D-Bus over TCP
-	 */
-	if (manager_start(config_file) < 0)
+	if (manager_start(opts_file) < 0)
 		goto main_exit;
 
 	l_main_run_with_signal(signal_handler, NULL);

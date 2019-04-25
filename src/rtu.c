@@ -32,6 +32,7 @@
 
 #include <modbus.h>
 
+#include "options.h"
 #include "driver.h"
 
 static modbus_t *create(const char *url)
@@ -44,7 +45,8 @@ static modbus_t *create(const char *url)
 	/* Ignoring "serial:/" */
 	l_info("RTU: %s", url);
 
-	return modbus_new_rtu(&url[8], 115200, 'N', 8, 1);
+	return modbus_new_rtu(&url[8], serial_opts.baud, serial_opts.parity,
+			      serial_opts.data_bit, serial_opts.stop_bit);
 }
 
 static void destroy(modbus_t *ctx)

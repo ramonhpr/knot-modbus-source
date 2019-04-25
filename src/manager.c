@@ -28,9 +28,13 @@
 #include <ell/ell.h>
 
 #include "dbus.h"
+#include "options.h"
 #include "slave.h"
 #include "storage.h"
 #include "manager.h"
+
+struct main_options main_opts;
+struct serial_options serial_opts;
 
 static struct l_queue *slave_list;
 
@@ -48,6 +52,42 @@ static bool path_cmp(const void *a, const void *b)
 	const char *b1 = b;
 
 	return (strcmp(slave_get_path(slave), b1) == 0 ? true : false);
+}
+
+static int options_load(const char *filename)
+{
+	char *parity;
+	int strg;
+
+	/* TODO: missing D-Bus settings */
+	main_opts.tcp = false;
+	main_opts.polling_interval = 1000; /* 1000ms */
+
+	serial_opts.baud = 115200;
+	serial_opts.parity = 'N';
+	serial_opts.data_bit = 8;
+	serial_opts.stop_bit = 1;
+
+	if (!filename)
+		return 0;
+
+	strg = storage_open(filename);
+	if (strg < 0)
+		return strg;
+
+	storage_read_key_int(strg, "Serial", "Baud", &serial_opts.baud);
+	storage_read_key_int(strg, "Serial", "DataBit", &serial_opts.data_bit);
+	storage_read_key_int(strg, "Serial", "StopBit", &serial_opts.stop_bit);
+
+	parity = storage_read_key_string(strg, "Serial", "Parity");
+	if (parity) {
+		serial_opts.parity = parity[0];
+		l_free(parity);
+	}
+
+	storage_close(strg);
+
+	return 0;
 }
 
 static struct l_dbus_message *method_slave_add(struct l_dbus *dbus,
@@ -173,9 +213,11 @@ static void ready_cb(void *user_data)
 	slave_list = slave_start();
 }
 
-int manager_start(const char *config_file)
+int manager_start(const char *opts_file)
 {
 	l_info("Starting manager ...");
+
+	options_load(opts_file);
 
 	return dbus_start(ready_cb, NULL);
 }

@@ -224,6 +224,17 @@ int storage_write_key_string(int fd, const char *group,
 	return save_settings(fd, settings);
 }
 
+char *storage_read_key_string(int fd, const char *group, const char *key)
+{
+	struct l_settings *settings;
+
+	settings = l_hashmap_lookup(storage_list, L_INT_TO_PTR(fd));
+	if (!settings)
+		return NULL;
+
+	return l_settings_get_string(settings, group, key);
+}
+
 int storage_write_key_int(int fd, const char *group, const char *key, int value)
 {
 	struct l_settings *settings;
@@ -236,6 +247,17 @@ int storage_write_key_int(int fd, const char *group, const char *key, int value)
 		return -EINVAL;
 
 	return save_settings(fd, settings);
+}
+
+int storage_read_key_int(int fd, const char *group, const char *key, int *value)
+{
+	struct l_settings *settings;
+
+	settings = l_hashmap_lookup(storage_list, L_INT_TO_PTR(fd));
+	if (!settings)
+		return -EINVAL;
+
+	return l_settings_get_int(settings, group, key, value);
 }
 
 int storage_remove_group(int fd, const char *group)

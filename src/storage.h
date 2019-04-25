@@ -44,5 +44,8 @@ int storage_remove_group(int fd, const char *group);
 
 int storage_write_key_string(int fd, const char *group,
 			     const char *key, const char *value);
+char *storage_read_key_string(int fd, const char *group, const char *key);
 int storage_write_key_int(int fd, const char *group,
 			  const char *key, int value);
+int storage_read_key_int(int fd, const char *group,
+			  const char *key, int *value);
