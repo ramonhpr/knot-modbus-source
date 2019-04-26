@@ -10,7 +10,7 @@ def main(args):
                 " PATH]".format(sys.argv[0]))
         print("")
         print("Optional arguments:")
-        print("  -a NAME TYPE OFFSET , --add ID NAME IP:PORT\n"
+        print("  -a NAME TYPE OFFSET , --add NAME TYPE OFFSET\n"
               "                   adds a new source to an slave\n"
               "                   NAME = string\n"
               "                   TYPE = bool(b),byte(y),uint16(q),uint32(u)\n"
