@@ -37,6 +37,7 @@
 
 static modbus_t *create(const char *url)
 {
+	modbus_t *ctx;
 	/*
 	 * FIXME: Parse serial configuration encoded at url
 	 * serial://dev/ttyUSB0:115200,'N',8,1
@@ -45,8 +46,16 @@ static modbus_t *create(const char *url)
 	/* Ignoring "serial:/" */
 	l_info("RTU: %s", url);
 
-	return modbus_new_rtu(&url[8], serial_opts.baud, serial_opts.parity,
-			      serial_opts.data_bit, serial_opts.stop_bit);
+	ctx = modbus_new_rtu(&url[8], serial_opts.baud, serial_opts.parity,
+				serial_opts.data_bit, serial_opts.stop_bit);
+
+	if (!ctx)
+		return NULL;
+
+	modbus_rtu_set_serial_mode(ctx, MODBUS_RTU_RS232);
+	modbus_rtu_set_rts(ctx, MODBUS_RTU_RTS_NONE);
+
+	return ctx;
 }
 
 static void destroy(modbus_t *ctx)
