@@ -308,6 +308,11 @@ static void enable_slave(struct l_timeout *timeout, void *user_data)
 		return;
 
 	slave->modbus = driver->create(slave->url);
+	if (!slave->modbus) {
+		/* FIXME: URL may be invalid. How to handle this scenario? */
+		l_error("Can not create modbus slave: %s", slave->url);
+		goto retry;
+	}
 
 	modbus_set_slave(slave->modbus, slave->id);
 
@@ -338,6 +343,7 @@ error:
 
 	slave->modbus = NULL;
 
+retry:
 	/* Try again in 5 seconds */
 	l_timeout_modify(timeout, 5);
 }
