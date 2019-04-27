@@ -27,9 +27,8 @@ m4_ifdef([AC_LIBTOOL_TAGS], [AC_LIBTOOL_TAGS([])])
 AC_DISABLE_STATIC
 AC_PROG_LIBTOOL
 
-PKG_CHECK_MODULES(ELL, ell,
-  [AC_DEFINE([HAVE_ELL],[1],[Use ELL])],
-  [AC_MSG_ERROR("ell missing")])
+PKG_CHECK_MODULES(ELL, ell >= 0.19, dummy=yes,
+		AC_MSG_ERROR("required libell >= 0.19"))
 AC_SUBST(ELL_CFLAGS)
 AC_SUBST(ELL_LIBS)
 
