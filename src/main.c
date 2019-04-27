@@ -33,6 +33,7 @@
 #include "manager.h"
 
 static const char *opts_file;
+static const char *units_file;
 
 static void signal_handler(uint32_t signo, void *user_data)
 {
@@ -47,6 +48,7 @@ static void signal_handler(uint32_t signo, void *user_data)
 
 static const struct option main_options[] = {
 	{ "config",		required_argument,	NULL, 'c' },
+	{ "units",		required_argument,	NULL, 'u' },
 	{ "help",		no_argument,		NULL, 'h' },
 	{ }
 };
@@ -56,7 +58,7 @@ static int parse_args(int argc, char *argv[])
 	int opt;
 
 	for (;;) {
-		opt = getopt_long(argc, argv, "c:",
+		opt = getopt_long(argc, argv, "c:u:",
 				  main_options, NULL);
 		if (opt < 0)
 			break;
@@ -64,6 +66,9 @@ static int parse_args(int argc, char *argv[])
 		switch (opt) {
 		case 'c':
 			opts_file = optarg;
+			break;
+		case 'u':
+			units_file = optarg;
 			break;
 		default:
 			return -EINVAL;
@@ -91,7 +96,7 @@ int main(int argc, char *argv[])
 
 	l_log_set_stderr();
 
-	if (manager_start(opts_file) < 0)
+	if (manager_start(opts_file, units_file) < 0)
 		goto main_exit;
 
 	l_main_run_with_signal(signal_handler, NULL);

@@ -54,6 +54,11 @@ static bool path_cmp(const void *a, const void *b)
 	return (strcmp(slave_get_path(slave), b1) == 0 ? true : false);
 }
 
+static struct l_hashmap *units_load(const char *filename)
+{
+	return NULL;
+}
+
 static int options_load(const char *filename)
 {
 	char *parity;
@@ -213,9 +218,12 @@ static void ready_cb(void *user_data)
 	slave_list = slave_start();
 }
 
-int manager_start(const char *opts_file)
+int manager_start(const char *opts_file, const char *units_file)
 {
 	l_info("Starting manager ...");
+
+	/* FIXME: needs to be mandatory */
+	units_load(units_file);
 
 	options_load(opts_file);
 

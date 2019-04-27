@@ -19,5 +19,5 @@
  *
  */
 
-int manager_start(const char *opts_file);
+int manager_start(const char *opts_file, const char *units_file);
 void manager_stop(void);
