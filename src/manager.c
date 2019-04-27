@@ -102,7 +102,7 @@ static struct l_dbus_message *method_slave_add(struct l_dbus *dbus,
 	const char *key = NULL;
 	const char *name = NULL;
 	const char *address = NULL;
-	uint8_t slave_id = 0;
+	uint8_t slave_id = 0xff;
 	char randomkeystr[17];
 	uint64_t randomkey;
 
@@ -127,8 +127,15 @@ static struct l_dbus_message *method_slave_add(struct l_dbus *dbus,
 
 	l_info("Creating new slave(%d, %s) ...", slave_id, address);
 
-	if (!address || slave_id == 0)
+	if (!address) {
+		l_error("URL missing!");
 		return dbus_error_invalid_args(msg);
+	}
+
+	if (slave_id  > 247) {
+		l_error("Slave id out of range (0 - 247)!");
+		return dbus_error_invalid_args(msg);
+	}
 
 	if (l_getrandom(&randomkey, sizeof(randomkey)) == false) {
 		l_error("l_getrandom(): not supported");
