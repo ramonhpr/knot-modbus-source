@@ -283,3 +283,14 @@ int storage_remove_group(int fd, const char *group)
 
 	return save_settings(fd, settings);
 }
+
+bool storage_has_unit(int fd, const char *group, const char *key)
+{
+	struct l_settings *settings;
+
+	settings = l_hashmap_lookup(storage_list, L_INT_TO_PTR(fd));
+	if (!settings)
+		return false;
+
+	return l_settings_has_key(settings, group, key);
+}

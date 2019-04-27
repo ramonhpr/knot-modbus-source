@@ -54,11 +54,6 @@ static bool path_cmp(const void *a, const void *b)
 	return (strcmp(slave_get_path(slave), b1) == 0 ? true : false);
 }
 
-static struct l_hashmap *units_load(const char *filename)
-{
-	return NULL;
-}
-
 static int options_load(const char *filename)
 {
 	char *parity;
@@ -215,19 +210,16 @@ static void ready_cb(void *user_data)
 			L_DBUS_INTERFACE_PROPERTIES);
 
 	/* Returns list of created slaves (from storage) */
-	slave_list = slave_start();
+	slave_list = slave_start(user_data);
 }
 
-int manager_start(const char *opts_file, const char *units_file)
+int manager_start(const char *opts_filename, const char *units_filename)
 {
 	l_info("Starting manager ...");
 
-	/* FIXME: needs to be mandatory */
-	units_load(units_file);
+	options_load(opts_filename);
 
-	options_load(opts_file);
-
-	return dbus_start(ready_cb, NULL);
+	return dbus_start(ready_cb, (void *) units_filename);
 }
 
 void manager_stop(void)

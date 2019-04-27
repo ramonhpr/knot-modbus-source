@@ -19,7 +19,7 @@
  *
  */
 
-struct l_queue *slave_start(void);
+struct l_queue *slave_start(const char *units_filename);
 void slave_stop(void);
 
 struct slave;

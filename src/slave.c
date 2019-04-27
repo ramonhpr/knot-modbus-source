@@ -70,6 +70,7 @@ extern struct modbus_driver tcp;
 extern struct modbus_driver rtu;
 
 static int slaves_storage;
+static int units_storage;
 
 static bool path_cmp(const void *a, const void *b)
 {
@@ -307,6 +308,7 @@ static void enable_slave(struct l_timeout *timeout, void *user_data)
 		return;
 
 	slave->modbus = driver->create(slave->url);
+
 	modbus_set_slave(slave->modbus, slave->id);
 
 	if (modbus_connect(slave->modbus) != -1) {
@@ -355,6 +357,7 @@ static struct l_dbus_message *method_source_add(struct l_dbus *dbus,
 	const char *name = NULL;
 	const char *type = NULL;
 	const char *unit = NULL;
+	char *unithex;
 	uint16_t address = 0;
 	uint16_t interval = 1000; /* ms */
 	bool ret;
@@ -393,10 +396,16 @@ static struct l_dbus_message *method_source_add(struct l_dbus *dbus,
 	if (!name || address == 0 || !type || !unit || strlen(type) != 1)
 		return dbus_error_invalid_args(msg);
 
+	unithex = l_util_hexstring_upper((const unsigned char *) unit,
+					 strlen(unit));
+	ret = storage_has_unit(units_storage, "SI", unithex);
+	l_free(unithex);
+	if (!ret)
+		return dbus_error_invalid_args(msg);
+
 	/* Restricted to basic D-Bus types: bool, byte, u16, u32, u64 */
 	memset(signature, 0, sizeof(signature));
-	ret = sscanf(type, "%[byqut]1s", signature);
-	if (ret != 1) {
+	if (sscanf(type, "%[byqut]1s", signature) != 1) {
 		l_info("Limited to basic types only!");
 		return dbus_error_invalid_args(msg);
 	}
@@ -700,7 +709,7 @@ const char *slave_get_path(const struct slave *slave)
 	return slave->path;
 }
 
-struct l_queue *slave_start(void)
+struct l_queue *slave_start(const char *units_filename)
 {
 	const char *filename = STORAGEDIR "/slaves.conf";
 	struct l_queue *list;
@@ -711,6 +720,13 @@ struct l_queue *slave_start(void)
 	slaves_storage = storage_open(filename);
 	if (slaves_storage < 0) {
 		l_error("Can not open/create slave files!");
+		return NULL;
+	}
+
+	units_storage = storage_open(units_filename);
+	if (units_storage < 0) {
+		l_error("Can not open units file!");
+		storage_close(slaves_storage);
 		return NULL;
 	}
 
@@ -731,6 +747,7 @@ struct l_queue *slave_start(void)
 void slave_stop(void)
 {
 
+	storage_close(units_storage);
 	storage_close(slaves_storage);
 
 	source_stop();
