@@ -27,6 +27,7 @@ typedef void (storage_foreach_slave_t)(const char *key,
 typedef void (storage_foreach_source_t)(const char *address,
 				       const char *name,
 				       const char *type,
+				       const char *unit,
 				       int interval,
 				       void *user_data);
 

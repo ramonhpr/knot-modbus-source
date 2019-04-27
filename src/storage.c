@@ -181,6 +181,7 @@ void storage_foreach_source(int fd, storage_foreach_source_t func,
 	char **groups;
 	char *name;
 	char *type;
+	char *unit;
 	int interval = 1000;
 	int i;
 
@@ -194,16 +195,25 @@ void storage_foreach_source(int fd, storage_foreach_source_t func,
 		l_settings_get_int(settings, groups[i],
 				       "PollingInterval", &interval);
 
+		/* Local name: alias */
 		name = l_settings_get_string(settings, groups[i], "Name");
-		if (!name)
-			continue;
 
+		/* Signature based on D-Bus data types */
 		type = l_settings_get_string(settings, groups[i], "Type");
-		if (type)
-			func(groups[i], name, type, interval, user_data);
 
+		/* Unit (symbol) based on IEEE 210.1 */
+		unit = l_settings_get_string(settings, groups[i], "Unit");
+
+		if (name && type && unit)
+				func(groups[i], name, type,
+				     unit, interval, user_data);
+		else
+			l_error("storage: invalid source (%s)", groups[i]);
+
+		/* Always release memory */
 		l_free(name);
 		l_free(type);
+		l_free(unit);
 	}
 
 	l_strfreev(groups);

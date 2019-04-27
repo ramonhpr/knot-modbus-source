@@ -6,17 +6,18 @@ import dbus
 
 def main(args):
     if (args.help == True):
-        print("Usage: {} [-h] [-a NAME TYPE OFFSET] [-c N] [-l] [-rm PATH] [-p"
+        print("Usage: {} [-h] [-a NAME TYPE UNIT OFFSET] [-c N] [-l] [-rm PATH] [-p"
                 " PATH]".format(sys.argv[0]))
         print("")
         print("Optional arguments:")
-        print("  -a NAME TYPE OFFSET , --add NAME TYPE OFFSET\n"
+        print("  -a NAME TYPE UNIT OFFSET , --add NAME TYPE UNIT OFFSET\n"
               "                   adds a new source to an slave\n"
               "                   NAME = string\n"
               "                   TYPE = bool(b),byte(y),uint16(q),uint32(u)\n"
+              "                   UNIT = string\n"
               "                   OFFSET = int\n"
               "                   add the slave path is required")
-        print("  -h, --help       show this help massage and exit")
+        print("  -h, --help       show this help message and exit")
         print("  -l, --list       list all sources in a given slave")
         print("  -p PATH, --path PATH  \n"
               "                   specify the slave's path whose sources will\n"
@@ -62,14 +63,17 @@ def main(args):
         print ("Adding source:")
         print ("  Name:  {}".format(args.add[0]))
         print ("  Type:  {}".format(args.add[1]))
-        print ("  Address:  {}".format(args.add[2]))
+        print ("  Unit:  {}".format(args.add[2]))
+        print ("  Address:  {}".format(args.add[3]))
 
         nameval = dbus.String(args.add[0])
         typeval = dbus.String(args.add[1])
-        addrval = dbus.UInt16(args.add[2])
+        unitval = dbus.String(args.add[2])
+        addrval = dbus.UInt16(args.add[3])
         slave_dict = dict()
         slave_dict.update({"Name": nameval})
         slave_dict.update({"Type": typeval})
+        slave_dict.update({"Unit": unitval})
         slave_dict.update({"Address": addrval})
         dbus_dict = dbus.Dictionary(slave_dict, signature='sv')
         print ("PATH: {}".format(slave.AddSource(dbus_dict)))
@@ -86,7 +90,7 @@ if __name__ == "__main__":
     parser = ArgumentParser(prog="./test-slave", add_help=False)
     parser.add_argument("-p", "--path", action="store", type=str)
     parser.add_argument('-A', '--dbus-address', dest="address", type=str)
-    parser.add_argument("-a", "--add", action ="store", type=str, nargs=3)
+    parser.add_argument("-a", "--add", action ="store", type=str, nargs=4)
     parser.add_argument("-h", "--help", action="store_true")
     parser.add_argument("-l", "--list", action="store_true")
     parser.add_argument("-rm","--remove",action="store",type=str)

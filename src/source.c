@@ -37,6 +37,7 @@ struct source {
 	char *path;		/* D-Bus Object path */
 	char *name;		/* Local name */
 	char *sig;		/* D-Bus like signature */
+	char *unit;		/* Unit symbol based on IEEE 260.1 */
 	uint16_t address;	/* PLC memory address */
 	uint16_t interval;	/* Polling interval in ms */
 	int storage;		/* Storage identification */
@@ -53,6 +54,7 @@ static void source_free(struct source *source)
 {
 	l_free(source->name);
 	l_free(source->sig);
+	l_free(source->unit);
 	l_free(source->path);
 	l_info("source_free(%p)", source);
 	l_free(source);
@@ -129,6 +131,18 @@ static bool property_get_signature(struct l_dbus *dbus,
 	return true;
 }
 
+static bool property_get_unit(struct l_dbus *dbus,
+				  struct l_dbus_message *msg,
+				  struct l_dbus_message_builder *builder,
+				  void *user_data)
+{
+	struct source *source = user_data;
+
+	l_dbus_message_builder_append_basic(builder, 's', source->unit);
+
+	return true;
+}
+
 static bool property_get_address(struct l_dbus *dbus,
 				  struct l_dbus_message *msg,
 				  struct l_dbus_message_builder *builder,
@@ -182,6 +196,11 @@ static void setup_interface(struct l_dbus_interface *interface)
 				       NULL))
 		l_error("Can't add 'Type' property");
 
+	if (!l_dbus_interface_property(interface, "Unit", 0, "s",
+				       property_get_unit,
+				       NULL))
+		l_error("Can't add 'Unit' property");
+
 	/* Variable address */
 	if (!l_dbus_interface_property(interface, "Address", 0, "q",
 				       property_get_address,
@@ -224,8 +243,9 @@ void source_stop(void)
 }
 
 struct source *source_create(const char *prefix, const char *name,
-			     const char *sig, uint16_t address,
-			     uint16_t interval, int storage_id, bool store)
+			     const char *sig, const char *unit,
+			     uint16_t address, uint16_t interval,
+			     int storage_id, bool store)
 {
 	char addrstr[7];
 	struct source *source;
@@ -237,6 +257,7 @@ struct source *source_create(const char *prefix, const char *name,
 	source->refs = 0;
 	source->name = l_strdup(name);
 	source->sig= l_strdup(sig);
+	source->unit = l_strdup(unit);
 	source->address = address;
 	source->path = NULL;
 	source->interval = interval;
@@ -268,6 +289,7 @@ struct source *source_create(const char *prefix, const char *name,
 		snprintf(addrstr, sizeof(addrstr), "0x%04x", address);
 		storage_write_key_string(storage_id, addrstr, "Name", name);
 		storage_write_key_string(storage_id, addrstr, "Type", sig);
+		storage_write_key_string(storage_id, addrstr, "Unit", unit);
 		storage_write_key_int(storage_id, addrstr,
 				      "PollingInterval", interval);
 	}

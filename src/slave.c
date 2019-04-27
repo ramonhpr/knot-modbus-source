@@ -166,6 +166,7 @@ static void create_slave_from_storage(const char *key,
 static void create_source_from_storage(const char *address,
 				const char *name,
 				const char *type,
+				const char *unit,
 				int interval,
 				void *user_data)
 {
@@ -176,7 +177,7 @@ static void create_source_from_storage(const char *address,
 	if (sscanf(address, "0x%04x", &uaddr) != 1)
 		return;
 
-	source = source_create(slave->path, name, type, uaddr,
+	source = source_create(slave->path, name, type, unit, uaddr,
 			       interval, slave->src_storage, false);
 	if (!source)
 		return;
@@ -353,6 +354,7 @@ static struct l_dbus_message *method_source_add(struct l_dbus *dbus,
 	const char *key = NULL;
 	const char *name = NULL;
 	const char *type = NULL;
+	const char *unit = NULL;
 	uint16_t address = 0;
 	uint16_t interval = 1000; /* ms */
 	bool ret;
@@ -361,12 +363,18 @@ static struct l_dbus_message *method_source_add(struct l_dbus *dbus,
 		return dbus_error_invalid_args(msg);
 
 	while (l_dbus_message_iter_next_entry(&dict, &key, &value)) {
+		/* Local assigned name: alias */
 		if (strcmp(key, "Name") == 0)
 			ret = l_dbus_message_iter_get_variant(&value,
 							      "s", &name);
+		/* Signature based on D-Bus data types */
 		else if (strcmp(key, "Type") == 0)
 			ret = l_dbus_message_iter_get_variant(&value,
 							      "s", &type);
+		/* Unit (symbol) based on IEEE 260.1 */
+		else if (strcmp(key, "Unit") == 0)
+			ret = l_dbus_message_iter_get_variant(&value,
+							      "s", &unit);
 		/* Memory address */
 		else if (strcmp(key, "Address") == 0)
 			ret = l_dbus_message_iter_get_variant(&value,
@@ -381,8 +389,8 @@ static struct l_dbus_message *method_source_add(struct l_dbus *dbus,
 			return dbus_error_invalid_args(msg);
 	}
 
-	/* FIXME: validate type */
-	if (!name || address == 0 || !type || strlen(type) != 1)
+	/* FIXME: validate type & unit */
+	if (!name || address == 0 || !type || !unit || strlen(type) != 1)
 		return dbus_error_invalid_args(msg);
 
 	/* Restricted to basic D-Bus types: bool, byte, u16, u32, u64 */
@@ -400,7 +408,7 @@ static struct l_dbus_message *method_source_add(struct l_dbus *dbus,
 		return dbus_error_invalid_args(msg);
 	}
 
-	source = source_create(slave->path, name, type, address, interval,
+	source = source_create(slave->path, name, type, unit, address, interval,
 			       slave->src_storage, true);
 	if (!source)
 		return dbus_error_invalid_args(msg);
