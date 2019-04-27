@@ -314,7 +314,11 @@ static void enable_slave(struct l_timeout *timeout, void *user_data)
 		goto retry;
 	}
 
-	modbus_set_slave(slave->modbus, slave->id);
+	if (modbus_set_slave(slave->modbus, slave->id) < 0) {
+		l_error("Can not set slave id: %d (url: %s)",
+			slave->id, slave->url);
+		goto error;
+	}
 
 	if (modbus_connect(slave->modbus) != -1) {
 		slave->io = l_io_new(modbus_get_socket(slave->modbus));
