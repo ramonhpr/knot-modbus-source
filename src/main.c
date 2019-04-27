@@ -32,8 +32,8 @@
 
 #include "manager.h"
 
-static const char *opts_file;
-static const char *units_file;
+static const char *opts_file = CONFIGDIR "/main.conf";
+static const char *units_file = CONFIGDIR "/units.conf";
 
 static void signal_handler(uint32_t signo, void *user_data)
 {

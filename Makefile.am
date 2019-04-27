@@ -24,6 +24,13 @@ src_modbusd_LDFLAGS = $(AM_LDFLAGS)
 src_modbusd_CFLAGS = $(AM_CFLAGS) $(modules_cflags) @ELL_CFLAGS@ @MODBUS_CFLAGS@
 
 DISTCLEANFILES =
+EXTRA_DIST = src/main.conf src/units.conf
+
+if CONFIGFILES
+confdir = $(sysconfdir)/modbus
+conf_DATA = src/main.conf
+conf_DATA += src/units.conf
+endif
 
 MAINTAINERCLEANFILES = Makefile.in \
 	aclocal.m4 configure config.h.in config.sub config.guess \

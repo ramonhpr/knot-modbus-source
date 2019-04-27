@@ -53,4 +53,19 @@ fi
 AC_DEFINE_UNQUOTED(STORAGEDIR, "${storagedir}",
                         [Directory for storing settings])
 
+if (test "${sysconfdir}" = '${prefix}/etc'); then
+	configdir="${prefix}/etc/modbus"
+else
+	configdir="${sysconfdir}/modbus"
+fi
+
+AC_DEFINE_UNQUOTED(CONFIGDIR, "${configdir}",
+			[Directory for the config files])
+AC_SUBST(CONFIGDIR, "${configdir}")
+
+AC_ARG_ENABLE(configfiles, AC_HELP_STRING([--enable-configfiles],
+			[Do not install config files]),
+					[enable_configfiles=${enableval}])
+AM_CONDITIONAL(CONFIGFILES, test "${enable_configfiles}" = "yes")
+
 AC_OUTPUT(Makefile)
