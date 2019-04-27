@@ -368,7 +368,7 @@ static struct l_dbus_message *method_source_add(struct l_dbus *dbus,
 	const char *type = NULL;
 	const char *unit = NULL;
 	char *unithex;
-	uint16_t address = 0;
+	uint16_t address = 0xffff;
 	uint16_t interval = 1000; /* ms */
 	bool ret;
 
@@ -402,8 +402,7 @@ static struct l_dbus_message *method_source_add(struct l_dbus *dbus,
 			return dbus_error_invalid_args(msg);
 	}
 
-	/* FIXME: validate type & unit */
-	if (!name || address == 0 || !type || !unit || strlen(type) != 1)
+	if (!name || address == 0xffff  || !type || !unit || strlen(type) != 1)
 		return dbus_error_invalid_args(msg);
 
 	unithex = l_util_hexstring_upper((const unsigned char *) unit,
