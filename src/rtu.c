@@ -27,6 +27,11 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <linux/serial.h>
+#include <asm-generic/ioctls.h>
 
 #include <ell/ell.h>
 
@@ -37,7 +42,11 @@
 
 static modbus_t *create(const char *url)
 {
+	struct serial_rs485 rs485conf;
 	modbus_t *ctx;
+	int mode = MODBUS_RTU_RS232;
+	int fd;
+
 	/*
 	 * FIXME: Parse serial configuration encoded at url
 	 * serial://dev/ttyUSB0:115200,'N',8,1
@@ -46,13 +55,28 @@ static modbus_t *create(const char *url)
 	/* Ignoring "serial:/" */
 	l_info("RTU: %s", url);
 
+	fd = open(&url[8], O_RDWR);
+	if (fd < 0)
+		return NULL;
+
+	memset(&rs485conf, 0, sizeof(rs485conf));
+	if (ioctl (fd, TIOCGRS485, &rs485conf) < 0) {
+		 mode = MODBUS_RTU_RS232;
+                 l_info("Switching to RS-232 ...");
+         } else {
+		 mode = MODBUS_RTU_RS485;
+                 l_info("Switching to RS-485 ...");
+	 }
+
+	close(fd);
+
 	ctx = modbus_new_rtu(&url[8], serial_opts.baud, serial_opts.parity,
 				serial_opts.data_bit, serial_opts.stop_bit);
 
 	if (!ctx)
 		return NULL;
 
-	modbus_rtu_set_serial_mode(ctx, MODBUS_RTU_RS232);
+	modbus_rtu_set_serial_mode(ctx, mode);
 	modbus_rtu_set_rts(ctx, MODBUS_RTU_RTS_NONE);
 
 	return ctx;
