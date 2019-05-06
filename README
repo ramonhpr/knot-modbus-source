@@ -16,6 +16,7 @@ versions.
 The build arguments available are:
 
 - LIBELL_VERSION (Default: 0.19)
+- USE_VALGRIND (Default: n)
 
 To run the container:
 $ docker run -p 55556:55556 -it modbus
