@@ -2,6 +2,7 @@ FROM solita/ubuntu-systemd:latest
 
 # build arguments
 ARG LIBELL_VERSION=0.19
+ARG USE_VALGRIND
 
 # install dependencies
 RUN apt-get update \
@@ -11,6 +12,9 @@ RUN apt-get update \
 
 RUN apt-get install -y \
       dbus libdbus-1-dev docker.io
+
+# Verify if should install valgrind
+RUN bash -c 'test -v USE_VALGRIND && apt-get install -y valgrind || echo "unset valgrind $USE_VALGRIND"'
 
 WORKDIR /usr/local
 
@@ -46,4 +50,4 @@ RUN make install
 # expose dbus port
 EXPOSE 55556
 
-CMD ["sh","-c","dbus-daemon --system && modbusd"]
+CMD ["bash","-c","dbus-daemon --system && command -v valgrind && (valgrind --leak-check=full --track-fds=yes modbusd; exit 0) || modbusd"]
