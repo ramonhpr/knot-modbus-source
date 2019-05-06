@@ -1,7 +1,7 @@
 FROM solita/ubuntu-systemd:latest
 
 # build arguments
-ARG LIBELL_VERSION=0.17
+ARG LIBELL_VERSION=0.19
 
 # install dependencies
 RUN apt-get update \

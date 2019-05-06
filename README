@@ -8,6 +8,15 @@ TCP client polling data frequently from the sources(servers).
 To build a image run:
 $ docker build -t modbus .
 
+### Custom build
+
+You can also use the options --build-arg ENV=value to install other dependencies
+versions.
+
+The build arguments available are:
+
+- LIBELL_VERSION (Default: 0.19)
+
 To run the container:
 $ docker run -p 55556:55556 -it modbus
 
