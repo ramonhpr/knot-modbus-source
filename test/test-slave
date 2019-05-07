@@ -7,21 +7,24 @@ import dbus
 
 def main(args):
     if (args.help == True):
-        print("Usage: {} [-h] [-a ID NAME IPADDRESS] [-c N] [-l] [-rm PATH] [-p"
+        print("Usage: {} [-h] [-a ID NAME URL] [-c N] [-l] [-rm PATH] [-p"
               " PATH]".format(sys.argv[0]))
         print("")
         print("Optional arguments:")
-        print("  -a ID NAME IP:PORT, --add ID NAME IP:PORT\n"
-              "                        adds a new slave")
-        print("  -c N,--create N       adds n new slaves")
-        print("  -h, --help            show this help massage and exit")
-        print("  -i, --info            show your dbus information")
-        print("  -l, --list            list all slaves")
+        print("  -a ID NAME URL, --add ID NAME URL\n"
+              "                     adds a new slave\n"
+              "                     ID = int (1 -247)\n"
+              "                     NAME = string\n"
+              "                     URL = tcp://IP:PORT, serial://dev/ttyPORT")
+        print("  -c N,--create N    adds n new slaves")
+        print("  -h, --help         show this help massage and exit")
+        print("  -i, --info         show your dbus information")
+        print("  -l, --list         list all slaves")
         print("  -p PATH, --path PATH  specify the path to manipulate slaves")
         print("  -rm SLAVEPATH, --remove SLAVEPATH\n"
-              "                        remove a given slave")
+              "                     remove a given slave")
         print("  -A ADDRESS, --dbus-address ADDRESS\n"
-              "                        dbus address to connect")
+              "                     dbus address to connect")
         return 0
 
     if (args.address):
@@ -44,9 +47,9 @@ def main(args):
 
     if (args.add != None):
         print ("Adding slave:")
-        print ("  Id:  %s (1 - 247)" % args.add[0])
-        print ("  Name:  %s" % args.add[1])
-        print ("  Address:  %s (host:port)" % args.add[2])
+        print ("  Id:  {}".format(args.add[0]))
+        print ("  Name: {}".format(args.add[1]))
+        print ("  URL:  {}".format(args.add[2]))
         idval = dbus.Byte(int(args.add[0]))
         nameval = dbus.String(args.add[1])
         urlval = dbus.String(args.add[2])
@@ -56,11 +59,11 @@ def main(args):
         slave_dict.update({"URL": urlval})
         dbus_dict = dbus.Dictionary(slave_dict, signature='sv')
         path = manager.AddSlave(dbus_dict)
-        print ("PATH: %s" % path)
+        print ("PATH: {}".format(path))
         return 0
 
     if (args.remove != None):
-        print ("Removing slave %s" % args.remove)
+        print ("Removing slave {}".format(args.remove))
         devpath = dbus.ObjectPath(args.remove)
         print (manager.RemoveSlave(devpath))
         return 0
@@ -79,23 +82,26 @@ def main(args):
             print("No slaves found.")
             return 0
         else:
-            print("Slaves found: {}".format(slaves))
+            print("Slaves found:")
+            for i in slaves:
+                print("{}".format(i))
             return 0
 
     if (args.create != None):
         DEFAULT_ADDR = ["google.com:80", "microsoft.com:80","engadget.com:80"]
         i = 1
 
-        for i in range(0,args.create):
+        for i in range(0,int(args.create)):
             idval = dbus.Byte(randint(1,247))
             nameval = dbus.String("test_{}".format(int(idval)))
-            urlval = dbus.String(DEFAULT_ADDR[randint(0,2)])
+            urlval = dbus.String("tcp://" + DEFAULT_ADDR[randint(0,2)])
             slave_dict = dict()
             slave_dict.update({"Id": idval})
+            slave_dict.update({"Name": nameval})
             slave_dict.update({"URL": urlval})
             dbus_dict = dbus.Dictionary(slave_dict, signature='sv')
             path = manager.AddSlave(dbus_dict)
-            print ("PATH: %s" % path)
+            print ("PATH: {}".format(path))
         return 0
 
 
@@ -108,6 +114,7 @@ if __name__ == "__main__":
     parser.add_argument("-h", "--help", action="store_true")
     parser.add_argument("-l", "--list", action="store_true")
     parser.add_argument("-i", "--info", action="store_true")
+    parser.add_argument("-c", "--create",action = "store")
     (args) = parser.parse_args()
     ret = main(args)
     sys.exit(ret)
