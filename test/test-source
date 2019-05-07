@@ -6,26 +6,24 @@ import dbus
 
 def main(args):
     if (args.help == True):
-        print("Usage: {} [-h] [-a NAME TYPE UNIT OFFSET] [-c N] [-l] [-rm PATH] [-p"
-                " PATH]".format(sys.argv[0]))
+        print("Usage: {} [-h] [-a NAME TYPE UNIT OFFSET PATH] [-l PATH] "
+              "[-rm SLAVEPATH SOURCEPATH]".format(sys.argv[0]))
         print("")
         print("Optional arguments:")
-        print("  -a NAME TYPE UNIT OFFSET , --add NAME TYPE UNIT OFFSET\n"
+        print("  -a NAME TYPE UNIT OFFSET PATH, --add NAME TYPE UNIT OFFSET PATH\n"
               "                   adds a new source to an slave\n"
               "                   NAME = string\n"
               "                   TYPE = bool(b),byte(y),uint16(q),uint32(u)\n"
-              "                   UNIT = string\n"
+              "                   UNIT = string check src/units.conf\n"
               "                   OFFSET = int\n"
-              "                   add the slave path is required")
+              "                   PATH = path of slave to add source")
         print("  -h, --help       show this help message and exit")
-        print("  -l, --list       list all sources in a given slave")
-        print("  -p PATH, --path PATH  \n"
-              "                   specify the slave's path whose sources will\n"
-              "                   be manipulated")
-        print("  -rm SOURCEPATH, --remove SOURCEPATH\n"
-              "                   remove a given source. slave path is required")
+        print("  -l PATH, --list PATH\n"
+              "                   list all sources in a given slave")
+        print("  -rm SLAVEPATH SOURCEPATH, --remove SLAVEPATH SOURCEPATH\n"
+              "                   remove a given source.")
         print("  -A ADDRESS, --dbus-address ADDRESS\n"
-              "                        dbus address to connect")
+              "                   dbus address to connect")
         return 0
 
     if (args.address):
@@ -33,33 +31,34 @@ def main(args):
     else:
         bus = dbus.SystemBus()
 
-    if (args.path):
-        obj = bus.get_object("br.org.cesar.modbus", args.path)
-        props = dbus.Interface(obj, "org.freedesktop.DBus.Properties")
-        slave = dbus.Interface(obj, "br.org.cesar.modbus.Slave1")
-    else : 
-        print("No slave path given. See help")
-        return 1
-
-    if (args.list == True):
+    if (args.list != None):
         list_obj = bus.get_object("br.org.cesar.modbus","/")
         iface = dbus.Interface(list_obj,"org.freedesktop.DBus.ObjectManager")
         sources = []
         for aux in iface.GetManagedObjects():
                 var = aux.split("/")
-                if ("/" + var[1] == args.path):
+                if ("/"+var[1] == args.list):
                     try:
                         sources.append(var[2])
                     except:
                         continue
         if not sources:
-            print("No sources in: {}".format(args.path))
+            print("No sources in: {}".format(args.list))
             return 0
         else:
-            print("Sources in {}: \n {}".format(args.path,sources))
+            print("Sources in {}:".format(args.list))
+            for i in sources:
+                print("{}".format("/"+ i))
             return 0
 
     if (args.add != None):
+        if (args.add[4]):
+            obj = bus.get_object("br.org.cesar.modbus", args.add[4])
+            props = dbus.Interface(obj, "org.freedesktop.DBus.Properties")
+            slave = dbus.Interface(obj, "br.org.cesar.modbus.Slave1")
+        else :
+            print("No slave path given. See help")
+            return 1
         print ("Adding source:")
         print ("  Name:  {}".format(args.add[0]))
         print ("  Type:  {}".format(args.add[1]))
@@ -81,19 +80,20 @@ def main(args):
 
 
     if (args.remove != None):
-        print ("Removing source {}".format(args.remove))
-        devpath = dbus.ObjectPath(args.path+args.remove)
+        obj = bus.get_object("br.org.cesar.modbus", args.remove[0])
+        slave = dbus.Interface(obj, "br.org.cesar.modbus.Slave1")
+        print ("Removing source {}".format(args.remove[0]+args.remove[1]))
+        devpath = dbus.ObjectPath(args.remove[0]+args.remove[1])
         print (slave.RemoveSource(devpath))
         return 0
 
 if __name__ == "__main__":
     parser = ArgumentParser(prog="./test-slave", add_help=False)
-    parser.add_argument("-p", "--path", action="store", type=str)
     parser.add_argument('-A', '--dbus-address', dest="address", type=str)
-    parser.add_argument("-a", "--add", action ="store", type=str, nargs=4)
+    parser.add_argument("-a", "--add", action ="store", type=str, nargs=5)
     parser.add_argument("-h", "--help", action="store_true")
-    parser.add_argument("-l", "--list", action="store_true")
-    parser.add_argument("-rm","--remove",action="store",type=str)
+    parser.add_argument("-l", "--list", action="store")
+    parser.add_argument("-rm","--remove",action="store",type=str, nargs=2)
     args = parser.parse_args()
     ret = main(args)
     sys.exit(ret)

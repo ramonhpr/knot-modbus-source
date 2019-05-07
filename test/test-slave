@@ -84,7 +84,7 @@ def main(args):
         else:
             print("Slaves found:")
             for i in slaves:
-                print("{}".format(i))
+                print("{}".format("/"+i))
             return 0
 
     if (args.create != None):
