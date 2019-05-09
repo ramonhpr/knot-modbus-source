@@ -27,6 +27,11 @@ m4_ifdef([AC_LIBTOOL_TAGS], [AC_LIBTOOL_TAGS([])])
 AC_DISABLE_STATIC
 AC_PROG_LIBTOOL
 
+PKG_CHECK_MODULES(TINYCBOR, tinycbor >= 0.5.3, dummy=yes,
+		AC_MSG_ERROR("required tinycbor >= 0.5.3"))
+AC_SUBST(TINYCBOR_CFLAGS)
+AC_SUBST(TINYCBOR_LIBS)
+
 PKG_CHECK_MODULES(ELL, ell >= 0.19, dummy=yes,
 		AC_MSG_ERROR("required libell >= 0.19"))
 AC_SUBST(ELL_CFLAGS)

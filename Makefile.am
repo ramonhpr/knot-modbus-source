@@ -17,11 +17,12 @@ src_modbusd_SOURCES = src/main.c \
 			src/dbus.h src/dbus.c \
 			src/options.h src/driver.h \
 			src/tcp.c src/rtu.c \
-			src/storage.h src/storage.c
+			src/storage.h src/storage.c \
+			src/smoke.h src/kfog.c
 
-src_modbusd_LDADD = $(modules_ldadd) @ELL_LIBS@  @MODBUS_LIBS@ -lm
+src_modbusd_LDADD = $(modules_ldadd) @TINYCBOR_LIBS@ @ELL_LIBS@  @MODBUS_LIBS@ -lm
 src_modbusd_LDFLAGS = $(AM_LDFLAGS)
-src_modbusd_CFLAGS = $(AM_CFLAGS) $(modules_cflags) @ELL_CFLAGS@ @MODBUS_CFLAGS@
+src_modbusd_CFLAGS = $(AM_CFLAGS) $(modules_cflags) @TINYCBOR_CFLAGS@ @ELL_CFLAGS@ @MODBUS_CFLAGS@
 
 DISTCLEANFILES =
 EXTRA_DIST = src/main.conf src/units.conf
