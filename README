@@ -16,6 +16,7 @@ versions.
 The build arguments available are:
 
 - LIBELL_VERSION (Default: 0.19)
+- TINYCBOR_VERSION (Default: master)
 - USE_VALGRIND (Default: n)
 
 To run the container:

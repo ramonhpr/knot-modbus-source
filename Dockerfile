@@ -2,6 +2,7 @@ FROM solita/ubuntu-systemd:latest
 
 # build arguments
 ARG LIBELL_VERSION=0.19
+ARG TINYCBOR_VERSION=master
 ARG USE_VALGRIND
 
 # install dependencies
@@ -28,6 +29,11 @@ RUN cd libmodbus && ./configure --prefix=/usr && make install
 RUN mkdir -p /usr/local/ell
 RUN wget -q -O- https://mirrors.edge.kernel.org/pub/linux/libs/ell/ell-$LIBELL_VERSION.tar.gz|tar xz -C /usr/local/ell --strip-components=1
 RUN cd ell && ./configure --prefix=/usr && make install
+
+# install tinycbor
+RUN mkdir -p /usr/local/tinycbor
+RUN wget -q -O- https://github.com/intel/tinycbor/archive/$TINYCBOR_VERSION.tar.gz | tar xz -C /usr/local/tinycbor --strip-components=1
+RUN cd tinycbor && make && make install
 
 # copy files to source
 # TODO: just export what it needs
